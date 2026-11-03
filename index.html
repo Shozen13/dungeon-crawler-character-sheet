@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dungeon Crawler Carl — Character Sheet</title>
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
 <header class="topbar">
@@ -67,6 +67,14 @@
       <button type="button" data-tab="skills" class="tab-btn">Skills</button>
       <button type="button" data-tab="spells" class="tab-btn">Spells</button>
       <button type="button" data-tab="inventory" class="tab-btn">Inventory</button>
+      <button type="button" data-tab="quests" class="tab-btn">Quests</button>
+      <button type="button" data-tab="journal" class="tab-btn">Journal</button>
+      <button type="button" data-tab="pets" class="tab-btn">Pets</button>
+      <button type="button" data-tab="mounts" class="tab-btn">Mounts</button>
+      <button type="button" data-tab="sponsors" class="tab-btn">Sponsors</button>
+      <button type="button" data-tab="faith" class="tab-btn">Faith</button>
+      <button type="button" data-tab="crafting" class="tab-btn">Crafting</button>
+      <button type="button" data-tab="bio" class="tab-btn">Bio</button>
       <button type="button" data-tab="choices" class="tab-btn" id="choices-tab-btn" hidden>Choices</button>
       <button type="button" data-tab="all" class="tab-btn">All</button>
     </nav>
@@ -164,7 +172,7 @@
       <label>Damage <input type="text" id="atk-damage" placeholder="e.g. 1d6 + Str Slashing"></label>
       <label>Notes <input type="text" id="atk-notes"></label>
       <button type="button" id="atk-add">Add attack</button>
-      <p class="hint">UNARMED COMBAT is added automatically. Its damage uses the skill rank if you have an UNARMED COMBAT skill card; otherwise Rank 1.</p>
+      <p class="hint">Attack skills and spells you have ranked appear automatically below under "Attack skills &amp; spells". UNARMED COMBAT comes from its skill card, like any other attack skill.</p>
     </section>
 
     <section class="panel" id="panel-gear">
@@ -198,6 +206,142 @@
         <button type="button" id="item-add">Add custom item</button>
       </div>
       <div id="item-list"></div>
+    </section>
+
+    <section class="panel" id="panel-quests">
+      <h2>Quests</h2>
+      <p class="hint">Quests you have taken on. Status is yours to track — the sheet does not decide when a quest is done.</p>
+      <div class="btn-row">
+        <label>Name <input type="text" id="quest-name" placeholder="e.g. Find the missing caravan"></label>
+        <label>Notes <input type="text" id="quest-notes" placeholder="Who gave it, where, reward"></label>
+        <button type="button" id="quest-add">Add quest</button>
+      </div>
+      <div id="quest-list"></div>
+    </section>
+
+    <section class="panel" id="panel-journal">
+      <h2>Journal</h2>
+      <p class="hint">A running log, newest first. Date defaults to today; change it if you are writing up an earlier day.</p>
+      <div class="btn-row">
+        <label>Date <input type="date" id="journal-date"></label>
+        <label>Title <input type="text" id="journal-title" placeholder="e.g. Third Floor, first night"></label>
+      </div>
+      <label>Entry <textarea id="journal-text" rows="4" placeholder="What happened?"></textarea></label>
+      <div class="btn-row"><button type="button" id="journal-add">Add entry</button></div>
+      <div id="journal-list"></div>
+    </section>
+
+    <section class="panel" id="panel-pets">
+      <h2>Pets</h2>
+      <p class="hint">Pets start at Level 1 and level twice as fast as crawlers until Level 15, then at the same rate, with 3 stat points per level (never Intelligence). Their attack/spell ranks equal the current Floor — pets do not have trackable skill ranks, so skills here are names only and show Rank = Floor. Health Bar slots start equal to size and gain 1 per level, to a maximum of 10.</p>
+      <div class="btn-row">
+        <label>Name <input type="text" id="pet-name" placeholder="e.g. Princess Donut"></label>
+        <label>Type <input type="text" id="pet-kind" placeholder="e.g. Velociraptor"></label>
+        <button type="button" id="pet-add">Add pet</button>
+      </div>
+      <div id="pet-list"></div>
+    </section>
+
+    <section class="panel" id="panel-mounts">
+      <h2>Mounts</h2>
+      <p class="hint">Mounts do not level up like pets. They move you at no Action cost, get one Action per combat round, and do not attack unless they have Trample (Rank = Floor, Xd6 Bludgeoning where X is size). Mounting or dismounting costs a Move Action. Health Bar slots equal size. Base price is 20,000 gold for a size Large (5) mount with Move 30ft and Step 10ft; each upgrade below costs an extra 5,000 gold, and non-attack upgrades may be taken multiple times.</p>
+      <div class="btn-row">
+        <label>Name <input type="text" id="mount-name" placeholder="e.g. Old Bess"></label>
+        <label>Type <input type="text" id="mount-kind" placeholder="e.g. War horse"></label>
+        <button type="button" id="mount-add">Add mount</button>
+      </div>
+      <div id="mount-list"></div>
+    </section>
+
+    <section class="panel" id="panel-sponsors">
+      <h2>Sponsors</h2>
+      <p class="hint">Banner Count is manual: Send Sponsor Banner adds one, and the −/+ buttons correct it. Nothing here is automatic.</p>
+      <div class="btn-row">
+        <label>Name <input type="text" id="sponsor-name" placeholder="e.g. CrawlerCo"></label>
+        <label>Notes <input type="text" id="sponsor-notes" placeholder="Deal, terms"></label>
+        <button type="button" id="sponsor-add">Add sponsor</button>
+      </div>
+      <div id="sponsor-list"></div>
+    </section>
+
+    <section class="panel" id="panel-faith">
+      <h2>Faith</h2>
+      <p class="hint">Worship tiers: Acolyte, Devotee (highest for non-Clerics/non-Paladins), Zealot (Clerics/Paladins). Required tithe: 5% at Acolyte, 10% at Devotee, 20% at Zealot, of all looted gold. Every 5 consecutive days of worship (tithes and daily offerings) earns a Boon. Miss a day and you lose worship benefits until you offer the next day; miss two days and you gain a Divine Debuff; miss three and you gain Fallen from Grace (you cannot worship any deities, 50% chance of being smote). Church quests you must complete go on the Quests tab. In-game time is not real time, so streak and missed days are tracked by hand with the buttons below.</p>
+      <label>Deity <input type="text" id="faith-deity" placeholder="e.g. The System AI"></label>
+      <label>Worship tier
+        <select id="faith-tier">
+          <option value="none">Not worshiping</option>
+          <option value="acolyte">Acolyte (Tier 1)</option>
+          <option value="devotee">Devotee (Tier 2)</option>
+          <option value="zealot">Zealot (Tier 3)</option>
+        </select>
+      </label>
+      <label>Total gold looted, all time <input type="number" id="faith-looted" min="0" value="0"></label>
+      <p id="faith-status"></p>
+      <div class="btn-row">
+        <button type="button" id="faith-offered">Made today's offering</button>
+        <button type="button" id="faith-missed">Missed a day</button>
+      </div>
+      <h3>Offerings</h3>
+      <div class="btn-row">
+        <label>Date <input type="date" id="offering-date"></label>
+        <label>Offering <input type="text" id="offering-name" placeholder="e.g. First kill of the day"></label>
+        <label>Notes <input type="text" id="offering-notes"></label>
+        <button type="button" id="offering-add">Add offering</button>
+      </div>
+      <div id="offering-list"></div>
+      <h3>Tithes</h3>
+      <div class="btn-row">
+        <label>Amount (gold) <input type="number" id="tithe-amount" min="0" value="0"></label>
+        <label>Notes <input type="text" id="tithe-notes"></label>
+        <button type="button" id="tithe-add">Add tithe</button>
+      </div>
+      <div id="tithe-list"></div>
+      <p id="tithe-total"></p>
+    </section>
+
+    <section class="panel" id="panel-crafting">
+      <h2>Crafting</h2>
+      <p class="hint">Tables run tier 1–10. A brand-new tier-1 table costs 25,000 gold and levels up by 1 when you reach a new floor; upgrades come from Table Upgrade Coupons in loot boxes or cost 250,000 gold. A table's tier is a bonus to your Skill Check, and if you need multiple tables only the lowest-tier bonus applies. You cannot enchant an item with the exact same property twice, and enchanting gets risky after three enchantments. A "+1 Longsword" is really two enchantments: +1 Longsword Skill Rank and +1 damage bonus, crafted and rolled separately.</p>
+      <div class="btn-row">
+        <label>Project <input type="text" id="craft-name" placeholder="e.g. Reinforced buckler"></label>
+        <label>Table type
+          <select id="craft-table">
+            <option value="Alchemy">Alchemy — potions and poisons</option>
+            <option value="Arcanist">Arcanist — items with inherent spells</option>
+            <option value="Armorer">Armorer — armor</option>
+            <option value="Engineering">Engineering — moving parts, fluids, chemicals</option>
+            <option value="Metalworking">Metalworking — weapons</option>
+            <option value="Sapper's">Sapper's — explosives</option>
+            <option value="Writing">Writing — scrolls</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+        <label>Table tier <input type="number" id="craft-tier" min="1" max="10" value="1"></label>
+        <label>Effect
+          <select id="craft-effect">
+            <option value="Damage Resistance">Damage Resistance — Smithing</option>
+            <option value="Explosives">Explosives — Explosives Handling or Goblin Explosives</option>
+            <option value="Potions">Potions — Alchemy</option>
+            <option value="Scrolls">Scrolls — Calligraphy</option>
+            <option value="Spells">Spells — Arcane</option>
+            <option value="Tattoos">Tattoos — Tattoo Artistry</option>
+            <option value="Other">Other</option>
+          </select>
+        </label>
+        <label>Notes <input type="text" id="craft-notes" placeholder="Materials, workshop"></label>
+        <button type="button" id="craft-add">Add project</button>
+      </div>
+      <div id="craft-list"></div>
+    </section>
+
+    <section class="panel" id="panel-bio">
+      <h2>Bio</h2>
+      <p class="hint">Free text about your crawler. Nothing here affects stats or rolls; it is saved with the sheet and exported with it.</p>
+      <label>Appearance <textarea id="bio-appearance" rows="3"></textarea></label>
+      <label>Personality <textarea id="bio-personality" rows="3"></textarea></label>
+      <label>Backstory <textarea id="bio-backstory" rows="4"></textarea></label>
+      <label>Notes <textarea id="bio-notes" rows="3"></textarea></label>
     </section>
 
     <section class="panel" id="panel-choices">
@@ -273,8 +417,8 @@
   </div>
 </div>
 
-<script src="js/rules.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
-<script src="js/wizard.js?v=9"></script>
+<script src="js/rules.js?v=10"></script>
+<script src="js/app.js?v=10"></script>
+<script src="js/wizard.js?v=10"></script>
 </body>
 </html>

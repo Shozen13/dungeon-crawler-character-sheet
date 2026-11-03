@@ -42,6 +42,7 @@
       moveVal: 20, stepVal: 10, bossKills: 0, pkKills: 0,
       buffs: [], debuffs: [], hotlist: [],
       skills: [], spells: [], attacks: [], items: [], pendingDamage: null,
+      story: { quests: [], journal: [], pets: [], mounts: [], sponsors: [], faith: { deity: '', tier: 'none', looted: 0, streak: 0, missed: 0, offerings: [], tithes: [] }, crafting: [], bio: { appearance: '', personality: '', backstory: '', notes: '' } },
       raceClassApplied: [], raceClassChoices: {}, raceClassMoveApplied: null, backgrounds: null,
       activeTab: 'vitals'
     };
@@ -58,7 +59,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=9').then(function (r) {
+    return fetch(path + '?v=10').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -577,6 +578,144 @@
     if (!cache.skills) { ensureSkills().then(function () { renderAll(); }).catch(function () {}); }
     $('spell-list').innerHTML = state.spells.filter(function (c) { return cardRank(c) >= 1; }).map(cardHtml).join('') || '<p class="hint">No spells yet. Pick from the rulebook or add a custom spell.</p>';
   }
+  /* ---------------- story tabs ---------------- */
+  function story() {
+    if (!state.story) state.story = { quests: [], journal: [], pets: [], mounts: [], sponsors: [], faith: { deity: '', tier: 'none', looted: 0, streak: 0, missed: 0, offerings: [], tithes: [] }, crafting: [], bio: { appearance: '', personality: '', backstory: '', notes: '' } };
+    if (!state.story.faith) state.story.faith = { deity: '', tier: 'none', looted: 0, streak: 0, missed: 0, offerings: [], tithes: [] };
+    ['tier', 'looted', 'streak', 'missed'].forEach(function (k) { if (state.story.faith[k] === undefined) state.story.faith[k] = k === 'tier' ? 'none' : 0; });
+    if (!state.story.bio) state.story.bio = { appearance: '', personality: '', backstory: '', notes: '' };
+    ['quests', 'journal', 'pets', 'mounts', 'sponsors', 'crafting'].forEach(function (k) { if (!state.story[k]) state.story[k] = []; });
+    return state.story;
+  }
+  function storyStatusOptions(cur) {
+    return ['active', 'completed', 'failed'].map(function (s) { return '<option value="' + s + '"' + (cur === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+  }
+  function renderQuests() {
+    $('quest-list').innerHTML = story().quests.map(function (q) {
+      return '<div class="card"><h4>' + esc(q.name) + '</h4><p>' + esc(q.notes || '') + '</p>'
+        + '<div class="row"><label>Status <select onchange="DCC.storySet(\'quests\',\'' + q.id + '\',\'status\',this.value)">' + storyStatusOptions(q.status) + '</select></label>'
+        + '<label>Notes <input type="text" value="' + esc(q.notes || '') + '" onchange="DCC.storySet(\'quests\',\'' + q.id + '\',\'notes\',this.value)"></label>'
+        + '<button type="button" onclick="DCC.storyDel(\'quests\',\'' + q.id + '\')">Delete</button></div></div>';
+    }).join('') || '<p class="hint">No quests yet.</p>';
+  }
+  function renderJournal() {
+    var entries = story().journal.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    $('journal-list').innerHTML = entries.map(function (e) {
+      return '<div class="card"><h4>' + esc(e.title || '(untitled)') + ' — ' + esc(e.date || '') + '</h4><p>' + esc(e.text || '') + '</p>'
+        + '<button type="button" onclick="DCC.storyDel(\'journal\',\'' + e.id + '\')">Delete</button></div>';
+    }).join('') || '<p class="hint">No journal entries yet.</p>';
+  }
+  function petHpSlots(c) { return Math.min(10, num(c.size, 3) + Math.max(0, num(c.level, 1) - 1)); }
+  function renderPets() {
+    $('pet-list').innerHTML = story().pets.map(function (c) {
+      return '<div class="card"><h4>' + esc(c.name) + (c.kind ? ' — ' + esc(c.kind) : '') + '</h4>'
+        + '<p>Level ' + num(c.level, 1) + ' · Attitude: ' + esc(c.attitude || 'Calm') + ' · Role: ' + esc(c.role || 'None') + ' · Health Bar slots: ' + petHpSlots(c) + ' (size ' + num(c.size, 3) + ', +1 per level, max 10)</p>'
+        + '<div class="row"><label>Level <input type="number" min="1" value="' + num(c.level, 1) + '" onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'level\',this.value)"></label>'
+        + '<label>Size <input type="number" min="1" value="' + num(c.size, 3) + '" onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'size\',this.value)"></label>'
+        + '<label>Attitude <select onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'attitude\',this.value)">'
+        + ['Hostile', 'Calm', 'Friendly', 'Bonded'].map(function (a) { return '<option' + ((c.attitude || 'Calm') === a ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></label>'
+        + '<label>Role <select onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'role\',this.value)">'
+        + ['None', 'Tank', 'Aggressive', 'Utility'].map(function (a) { return '<option' + ((c.role || 'None') === a ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></label></div>'
+        + '<label>Notes <input type="text" value="' + esc(c.notes || '') + '" onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'notes\',this.value)"></label>'
+        + '<p><strong>Attacks / Spells / Abilities (Rank = Floor ' + state.floor + '):</strong> ' + (c.skills || []).map(function (s) { return esc(s.name); }).join(', ') + '</p>'
+        + '<p><strong>Special Abilities:</strong> ' + (c.abilities || []).join(', ') + '</p>'
+        + '<div class="row"><label>Skill / Attack / Spell <input type="text" id="comp-skill-name-' + c.id + '" placeholder="Name"></label>'
+        + '<button type="button" onclick="DCC.compSkillAdd(\'pets\',\'' + c.id + '\')">Add</button>'
+        + '<label>Special Ability <input type="text" id="comp-ability-' + c.id + '" placeholder="e.g. Move 60ft"></label>'
+        + '<button type="button" onclick="DCC.compListAdd(\'pets\',\'' + c.id + '\',\'abilities\',\'comp-ability-\')">Add ability</button>'
+        + '<button type="button" onclick="DCC.storyDel(\'pets\',\'' + c.id + '\')">Delete pet</button></div>'
+        + (c.skills || []).map(function (s) { return '<p>' + esc(s.name) + ' — Rank = Floor ' + state.floor + ' <button type="button" onclick="DCC.compSkillDel(\'pets\',\'' + c.id + '\',\'' + s.id + '\')">Remove</button></p>'; }).join('')
+        + (c.abilities || []).map(function (a, ai) { return '<p>' + esc(a) + ' <button type="button" onclick="DCC.compListDel(\'pets\',\'' + c.id + '\',\'abilities\',' + ai + ')">Remove</button></p>'; }).join('')
+        + '</div>';
+    }).join('') || '<p class="hint">No pets yet.</p>';
+  }
+  function renderMounts() {
+    $('mount-list').innerHTML = story().mounts.map(function (c) {
+      var size = num(c.size, 5), move = num(c.move, 30);
+      var ups = c.upgrades || [];
+      var moveBonus = 0, drBonus = 0, sizeBonus = 0, trample = false;
+      ups.forEach(function (u) {
+        if (u === '+5ft Move') moveBonus += 5;
+        if (u === '+1 DR') drBonus += 1;
+        if (u === '+1 Size') sizeBonus += 1;
+        if (u === 'Trample') trample = true;
+      });
+      var effSize = size + sizeBonus;
+      return '<div class="card"><h4>' + esc(c.name) + (c.kind ? ' — ' + esc(c.kind) : '') + '</h4>'
+        + '<p>Size ' + effSize + ' · Move ' + (move + moveBonus) + 'ft · Step ' + num(c.step, 10) + 'ft · Health Bar slots: ' + effSize + ' (mounts do not level) · DR bonus: +' + drBonus + (trample ? ' · Trample: Rank = Floor ' + state.floor + ', ' + effSize + 'd6 Bludgeoning vs prone foes' : '') + '</p>'
+        + '<div class="row"><label>Size <input type="number" min="1" value="' + size + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'size\',this.value)"></label>'
+        + '<label>Move (ft) <input type="number" min="0" value="' + move + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'move\',this.value)"></label>'
+        + '<label>Step (ft) <input type="number" min="0" value="' + num(c.step, 10) + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'step\',this.value)"></label>'
+        + '<label>Attitude <select onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'attitude\',this.value)">'
+        + ['Hostile', 'Calm', 'Friendly', 'Bonded'].map(function (a) { return '<option' + ((c.attitude || 'Calm') === a ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></label></div>'
+        + '<label>Notes <input type="text" value="' + esc(c.notes || '') + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'notes\',this.value)"></label>'
+        + '<p><strong>Upgrades (5,000 gold each; non-attack upgrades stack):</strong> ' + ups.join(', ') + '</p>'
+        + '<div class="row"><label>Upgrade <select id="comp-upgrade-' + c.id + '"><option>+5ft Move</option><option>+1 DR</option><option>+1 Size</option><option>Trample</option></select></label>'
+        + '<button type="button" onclick="DCC.compSelectAdd(\'mounts\',\'' + c.id + '\',\'upgrades\',\'comp-upgrade-\')">Add upgrade</button>'
+        + '<button type="button" onclick="DCC.storyDel(\'mounts\',\'' + c.id + '\')">Delete mount</button></div>'
+        + ups.map(function (u, ui) { return '<p>' + esc(u) + ' <button type="button" onclick="DCC.compListDel(\'mounts\',\'' + c.id + '\',\'upgrades\',' + ui + ')">Remove</button></p>'; }).join('')
+        + '</div>';
+    }).join('') || '<p class="hint">No mounts yet.</p>';
+  }
+  function renderSponsors() {
+    $('sponsor-list').innerHTML = story().sponsors.map(function (s) {
+      return '<div class="card"><h4>' + esc(s.name) + '</h4><p>' + esc(s.notes || '') + '</p>'
+        + '<p>Banner Count: <strong>' + s.banners + '</strong></p>'
+        + '<div class="row"><button type="button" onclick="DCC.sponsorSend(\'' + s.id + '\')">Send Sponsor Banner</button>'
+        + '<button type="button" onclick="DCC.sponsorBanner(\'' + s.id + '\',-1)">−1</button>'
+        + '<button type="button" onclick="DCC.sponsorBanner(\'' + s.id + '\',1)">+1</button>'
+        + '<button type="button" onclick="DCC.storyDel(\'sponsors\',\'' + s.id + '\')">Delete</button></div></div>';
+    }).join('') || '<p class="hint">No sponsors yet.</p>';
+  }
+  var FAITH_TITHE = { none: 0, acolyte: 0.05, devotee: 0.10, zealot: 0.20 };
+  var CRAFT_SKILL = { 'Damage Resistance': 'Smithing', 'Explosives': 'Explosives Handling or Goblin Explosives', 'Potions': 'Alchemy', 'Scrolls': 'Calligraphy', 'Spells': 'Arcane', 'Tattoos': 'Tattoo Artistry', 'Other': '—' };
+  function renderFaith() {
+    var f = story().faith;
+    $('faith-deity').value = f.deity || '';
+    $('faith-tier').value = f.tier || 'none';
+    $('faith-looted').value = num(f.looted, 0);
+    var rate = FAITH_TITHE[f.tier] || 0;
+    var due = Math.floor(rate * num(f.looted, 0));
+    var tithed = (f.tithes || []).reduce(function (a, t) { return a + num(t.amount, 0); }, 0);
+    var owed = Math.max(0, due - tithed);
+    var missed = num(f.missed, 0), streak = num(f.streak, 0);
+    var consequence = missed === 0 ? 'Benefits active.' : missed === 1 ? 'Benefits lost until you make the offering the next day.' : missed === 2 ? 'Divine Debuff gained.' : 'Fallen from Grace: you cannot worship any deities, and there is a 50% chance of being smote.';
+    $('faith-status').innerHTML = 'Tithe rate: <strong>' + Math.round(rate * 100) + '%</strong> · Tithe due: <strong>' + due + ' gold</strong> · Tithed: <strong>' + tithed + ' gold</strong> · Still owed: <strong>' + owed + ' gold</strong><br>'
+      + 'Consecutive days of worship: <strong>' + streak + '</strong> (a Boon every 5 days: <strong>' + Math.floor(streak / 5) + '</strong> earned) · Days missed: <strong>' + missed + '</strong> · ' + consequence;
+    $('offering-list').innerHTML = (f.offerings || []).map(function (o) {
+      return '<div class="card"><h4>' + esc(o.name) + (o.date ? ' — ' + esc(o.date) : '') + '</h4><p>' + esc(o.notes || '') + '</p>'
+        + '<button type="button" onclick="DCC.faithDel(\'offerings\',\'' + o.id + '\')">Delete</button></div>';
+    }).join('') || '<p class="hint">No offerings yet.</p>';
+    $('tithe-list').innerHTML = (f.tithes || []).map(function (t) {
+      return '<div class="card"><h4>' + t.amount + ' gold</h4><p>' + esc(t.notes || '') + '</p>'
+        + '<button type="button" onclick="DCC.faithDel(\'tithes\',\'' + t.id + '\')">Delete</button></div>';
+    }).join('') || '<p class="hint">No tithes yet.</p>';
+    $('tithe-total').innerHTML = 'Total tithed: <strong>' + tithed + ' gold</strong>';
+  }
+  function renderCrafting() {
+    $('craft-list').innerHTML = story().crafting.map(function (c) {
+      return '<div class="card"><h4>' + esc(c.name) + '</h4>'
+        + '<p>Table: ' + esc(c.tableType || 'Other') + ' (tier ' + num(c.tableTier, 1) + ', +' + num(c.tableTier, 1) + ' to the Skill Check) · Effect: ' + esc(c.effect || 'Other') + ' · Skill needed: ' + esc(CRAFT_SKILL[c.effect] || '—') + '</p>'
+        + '<p><strong>Enchantments (no property twice):</strong> ' + (c.enchantments || []).join(', ') + '</p>'
+        + '<div class="row"><label>Status <select onchange="DCC.storySet(\'crafting\',\'' + c.id + '\',\'status\',this.value)">'
+        + ['planned', 'in-progress', 'done'].map(function (s) { return '<option value="' + s + '"' + (c.status === s ? ' selected' : '') + '>' + s + '</option>'; }).join('')
+        + '</select></label>'
+        + '<label>Table tier <input type="number" min="1" max="10" value="' + num(c.tableTier, 1) + '" onchange="DCC.storySet(\'crafting\',\'' + c.id + '\',\'tableTier\',this.value)"></label>'
+        + '<label>Notes <input type="text" value="' + esc(c.notes || '') + '" onchange="DCC.storySet(\'crafting\',\'' + c.id + '\',\'notes\',this.value)"></label>'
+        + '<label>Enchantment <input type="text" id="craft-ench-' + c.id + '" placeholder="e.g. +1 Strength"></label>'
+        + '<button type="button" onclick="DCC.compListAdd(\'crafting\',\'' + c.id + '\',\'enchantments\',\'craft-ench-\')">Add enchantment</button>'
+        + '<button type="button" onclick="DCC.storyDel(\'crafting\',\'' + c.id + '\')">Delete</button></div>'
+        + (c.enchantments || []).map(function (e, ei) { return '<p>' + esc(e) + ' <button type="button" onclick="DCC.compListDel(\'crafting\',\'' + c.id + '\',\'enchantments\',' + ei + ')">Remove</button></p>'; }).join('')
+        + '</div>';
+    }).join('') || '<p class="hint">No crafting projects yet.</p>';
+  }
+  function renderBio() {
+    var b = story().bio;
+    $('bio-appearance').value = b.appearance || '';
+    $('bio-personality').value = b.personality || '';
+    $('bio-backstory').value = b.backstory || '';
+    $('bio-notes').value = b.notes || '';
+  }
   /* Derived attacks: every ranked skill whose Chapter 4 Type line says
    * "Melee Attack" or "Ranged Attack", and every ranked spell whose
    * Chapter 4 keywords include "Attack", appears in the Attacks tab
@@ -872,6 +1011,10 @@
     html += '<p>Skills: ' + state.skills.filter(function (c) { return cardRank(c) >= 1; }).map(function (c) { return esc(c.name) + ' ' + cardRank(c); }).join(', ') + '</p>';
     html += '<p>Spells: ' + state.spells.filter(function (c) { return cardRank(c) >= 1; }).map(function (c) { return esc(c.name) + ' ' + cardRank(c); }).join(', ') + '</p>';
     html += '<p>Equipped: ' + state.items.filter(function (i) { return i.equipped; }).map(function (i) { return esc(i.name); }).join(', ') + '</p>';
+    var st = story();
+    html += '<p>Quests active: ' + st.quests.filter(function (q) { return q.status === 'active'; }).length + ' of ' + st.quests.length
+      + ' · Journal entries: ' + st.journal.length + ' · Pets: ' + st.pets.length + ' · Mounts: ' + st.mounts.length
+      + ' · Sponsors: ' + st.sponsors.length + ' · Crafting: ' + st.crafting.length + '</p>';
     $('all-content').innerHTML = html;
   }
 
@@ -897,6 +1040,14 @@
     else if (activeTab === 'skills') renderSkills();
     else if (activeTab === 'spells') renderSpells();
     else if (activeTab === 'inventory') renderItems();
+    else if (activeTab === 'quests') renderQuests();
+    else if (activeTab === 'journal') renderJournal();
+    else if (activeTab === 'pets') renderPets();
+    else if (activeTab === 'mounts') renderMounts();
+    else if (activeTab === 'sponsors') renderSponsors();
+    else if (activeTab === 'faith') renderFaith();
+    else if (activeTab === 'crafting') renderCrafting();
+    else if (activeTab === 'bio') renderBio();
     else if (activeTab === 'choices') renderChoices();
     else if (activeTab === 'all') renderAllPanel(stats);
     renderChoices(); // keeps the Choices tab button visibility current
@@ -1231,6 +1382,88 @@
       state.pendingDamage = null;
       saveSoon(); renderAll();
     },
+    storySet: function (type, id, field, value) {
+      var item = story()[type].find(function (x) { return x.id === id; });
+      if (item) { item[field] = value; saveSoon(); renderAll(); }
+    },
+    storyDel: function (type, id) {
+      story()[type] = story()[type].filter(function (x) { return x.id !== id; });
+      saveSoon(); renderAll();
+    },
+    compSkillAdd: function (type, id) {
+      // Pet attack/spell ranks equal the current Floor (book, p.231);
+      // no rank is stored, so the rendered rank always follows the Floor.
+      var comp = story()[type].find(function (x) { return x.id === id; });
+      if (!comp) return;
+      var nameEl = $('comp-skill-name-' + id);
+      var name = nameEl ? nameEl.value.trim() : '';
+      if (!name) return;
+      if (!comp.skills) comp.skills = [];
+      comp.skills.push({ id: uid(), name: name });
+      saveSoon(); renderAll();
+    },
+    compListAdd: function (type, id, field, prefix) {
+      var comp = story()[type].find(function (x) { return x.id === id; });
+      if (!comp) return;
+      var el = $(prefix + id);
+      var v = el ? el.value.trim() : '';
+      if (!v) return;
+      if (!comp[field]) comp[field] = [];
+      comp[field].push(v);
+      saveSoon(); renderAll();
+    },
+    compListDel: function (type, id, field, index) {
+      var comp = story()[type].find(function (x) { return x.id === id; });
+      if (comp && comp[field]) comp[field].splice(index, 1);
+      saveSoon(); renderAll();
+    },
+    compSelectAdd: function (type, id, field, prefix) {
+      var comp = story()[type].find(function (x) { return x.id === id; });
+      if (!comp) return;
+      var el = $(prefix + id);
+      var v = el ? el.value : '';
+      if (!v) return;
+      if (!comp[field]) comp[field] = [];
+      comp[field].push(v);
+      saveSoon(); renderAll();
+    },
+    faithSet: function (field, value) {
+      story().faith[field] = value;
+      saveSoon(); renderAll();
+    },
+    faithOffered: function () {
+      var f = story().faith;
+      f.offerings.push({ id: uid(), name: 'Daily offering', date: new Date().toISOString().slice(0, 10), notes: '' });
+      f.missed = 0; f.streak = num(f.streak, 0) + 1;
+      saveSoon(); renderAll();
+    },
+    faithMissed: function () {
+      var f = story().faith;
+      f.missed = num(f.missed, 0) + 1; f.streak = 0;
+      saveSoon(); renderAll();
+    },
+    compSkillDel: function (type, compId, skillId) {
+      var comp = story()[type].find(function (x) { return x.id === compId; });
+      if (comp && comp.skills) comp.skills = comp.skills.filter(function (s) { return s.id !== skillId; });
+      saveSoon(); renderAll();
+    },
+    sponsorBanner: function (id, delta) {
+      var s = story().sponsors.find(function (x) { return x.id === id; });
+      if (s) { s.banners = Math.max(0, num(s.banners, 0) + delta); saveSoon(); renderAll(); }
+    },
+    sponsorSend: function (id) {
+      var s = story().sponsors.find(function (x) { return x.id === id; });
+      if (s) { s.banners = num(s.banners, 0) + 1; saveSoon(); renderAll(); showRoll(s.name + ': Sponsor Banner sent. Banner Count is now ' + s.banners + '.'); }
+    },
+    faithDel: function (kind, id) {
+      var f = story().faith;
+      f[kind] = (f[kind] || []).filter(function (x) { return x.id !== id; });
+      saveSoon(); renderAll();
+    },
+    bioSet: function (field, value) {
+      story().bio[field] = value;
+      saveSoon();
+    },
     rollQuick: function (sides) {
       showRoll('d' + sides + ': rolled ' + R.rollDie(sides));
     },
@@ -1337,6 +1570,63 @@
         setTimeout(function () { btn.textContent = 'Copy result'; }, 2000);
       }).catch(function () {});
     });
+    click('quest-add', function () {
+      var v = $('quest-name').value.trim(); if (!v) return;
+      story().quests.push({ id: uid(), name: v, status: 'active', notes: $('quest-notes').value.trim() });
+      $('quest-name').value = ''; $('quest-notes').value = ''; saveSoon(); renderAll();
+    });
+    click('journal-add', function () {
+      var t = $('journal-title').value.trim(), x = $('journal-text').value.trim(); if (!t && !x) return;
+      story().journal.push({ id: uid(), date: $('journal-date').value || new Date().toISOString().slice(0, 10), title: t, text: x });
+      $('journal-title').value = ''; $('journal-text').value = ''; saveSoon(); renderAll();
+    });
+    click('pet-add', function () {
+      var v = $('pet-name').value.trim(); if (!v) return;
+      story().pets.push({ id: uid(), name: v, kind: $('pet-kind').value.trim(), notes: '', level: 1, size: 3, attitude: 'Calm', role: 'None', skills: [], abilities: [] });
+      $('pet-name').value = ''; $('pet-kind').value = ''; saveSoon(); renderAll();
+    });
+    click('mount-add', function () {
+      var v = $('mount-name').value.trim(); if (!v) return;
+      story().mounts.push({ id: uid(), name: v, kind: $('mount-kind').value.trim(), notes: '', size: 5, move: 30, step: 10, attitude: 'Calm', upgrades: [] });
+      $('mount-name').value = ''; $('mount-kind').value = ''; saveSoon(); renderAll();
+    });
+    click('sponsor-add', function () {
+      var v = $('sponsor-name').value.trim(); if (!v) return;
+      story().sponsors.push({ id: uid(), name: v, banners: 0, notes: $('sponsor-notes').value.trim() });
+      $('sponsor-name').value = ''; $('sponsor-notes').value = ''; saveSoon(); renderAll();
+    });
+    click('offering-add', function () {
+      var v = $('offering-name').value.trim(); if (!v) return;
+      story().faith.offerings.push({ id: uid(), name: v, date: $('offering-date').value || new Date().toISOString().slice(0, 10), notes: $('offering-notes').value.trim() });
+      $('offering-name').value = ''; $('offering-notes').value = ''; saveSoon(); renderAll();
+    });
+    click('tithe-add', function () {
+      story().faith.tithes.push({ id: uid(), amount: Math.max(0, num($('tithe-amount').value, 0)), notes: $('tithe-notes').value.trim() });
+      $('tithe-amount').value = '0'; $('tithe-notes').value = ''; saveSoon(); renderAll();
+    });
+    click('craft-add', function () {
+      var v = $('craft-name').value.trim(); if (!v) return;
+      story().crafting.push({ id: uid(), name: v, status: 'planned', tableType: $('craft-table').value, tableTier: Math.min(10, Math.max(1, num($('craft-tier').value, 1))), effect: $('craft-effect').value, notes: $('craft-notes').value.trim(), enchantments: [] });
+      $('craft-name').value = ''; $('craft-notes').value = ''; saveSoon(); renderAll();
+    });
+    (function () {
+      var deity = $('faith-deity');
+      if (deity) deity.addEventListener('change', function () { story().faith.deity = deity.value.trim(); saveSoon(); });
+      var tier = $('faith-tier');
+      if (tier) tier.addEventListener('change', function () { window.DCC.faithSet('tier', tier.value); });
+      var looted = $('faith-looted');
+      if (looted) looted.addEventListener('change', function () { window.DCC.faithSet('looted', Math.max(0, num(looted.value, 0))); });
+      click('faith-offered', function () { window.DCC.faithOffered(); });
+      click('faith-missed', function () { window.DCC.faithMissed(); });
+      ['appearance', 'personality', 'backstory', 'notes'].forEach(function (f) {
+        var el = $('bio-' + f);
+        if (el) el.addEventListener('change', function () { window.DCC.bioSet(f, el.value); });
+      });
+      var jd = $('journal-date');
+      if (jd && !jd.value) jd.value = new Date().toISOString().slice(0, 10);
+      var od = $('offering-date');
+      if (od && !od.value) od.value = new Date().toISOString().slice(0, 10);
+    })();
     click('buff-add', function () { var v = $('buff-name').value.trim(); if (v) { state.buffs.push(v); $('buff-name').value = ''; saveSoon(); renderAll(); } });
     click('debuff-add', function () { var v = $('debuff-name').value.trim(); if (v) { state.debuffs.push(v); $('debuff-name').value = ''; saveSoon(); renderAll(); } });
     click('hotlist-add', function () {

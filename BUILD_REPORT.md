@@ -181,3 +181,7 @@ live in the Choices tab instead.
 
 ## Update — pending damage uses the damage stat (2026-11-02, in v=9)
 - rules.damageStatFromText() + applyEffectSuccess damage-mod fix; manual-attack fallback now parses its typed damage instead of returning an unrollable formula. Tests 120, 0 failed. Subresources bumped to ?v=9.
+
+## Update — story tabs (2026-11-03, in v=10)
+- state.story + 8 panels + render/handlers in app.js; All tab shows story counts. Subresources bumped to ?v=10.
+- Fleshed out before push (book-checked): Faith tier/tithe/streak/missed, Pets level/attitude/role/HP with floor-derived skill ranks, Mounts size/move/step/upgrades/trample, Crafting table type/tier/effect-skill/enchantments. No new unit tests (sheet UI, not rules maths); live test is the check.
