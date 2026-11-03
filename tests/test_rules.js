@@ -105,6 +105,15 @@ eq(R.isAttackSkill('Made Up Skill'), false, 'custom skill (no Type line) does no
 eq(R.damageEffectParents('Foot Soldier Damage Effect, Passive. Only applies to targets with 20% Health Bar or less.'), ['Foot Soldier'], 'Smush parents: Foot Soldier');
 eq(R.damageEffectParents('Foot Soldier, Noggin Nocker, or Pugilism Damage Effect, Passive. Cooldown: 30 hours.'), ['Foot Soldier', 'Noggin Nocker', 'Pugilism'], 'Powerful Strike parents: three attacks');
 eq(R.damageEffectParents('Pugilism or Wrasslin’ Damage Effect, Passive.'), ['Pugilism', "Wrasslin'"], 'Dirty Fighting parents, curly apostrophe normalised');
+eq(R.damageEffectParents('Wrasslin’ Damage Effect, Passive.'), ["Wrasslin'"], 'Choke Out/Toss parent: Wrasslin');
+eq(R.damageEffectParents('Pugilism Damage Effect, Passive.'), ['Pugilism'], 'Iron Punch parent: Pugilism');
+eq(R.damageEffectParents('Noggin Nocker Damage Effect, Passive.'), ['Noggin Nocker'], 'Skullcracker parent: Noggin Nocker');
+// All 7 Damage Effects from the real data, each with at least one parent
+const fs2 = require('fs');
+const libAll2 = JSON.parse(fs2.readFileSync(__dirname + '/../data/skills_spells.json', 'utf8'));
+const de = libAll2.filter(e => R.damageEffectParents(e.base_effect).length > 0);
+eq(de.map(e => e.name).sort(), ['CHOKE OUT', 'DIRTY FIGHTING', 'IRON PUNCH', 'POWERFUL STRIKE', 'SKULLCRACKER', 'SMUSH', 'TOSS'], 'exactly 7 Damage Effects in the library');
+eq(de.every(e => R.damageEffectParents(e.base_effect).length >= 1), true, 'every Damage Effect names a parent attack');
 eq(R.damageEffectParents('Melee bashing weapon attack with no additional base effect stated.'), [], 'Club is not a Damage Effect');
 eq(R.normalizeKeywordMap({ 'FIREBALL': ['Attack', 'Fire'] }), { 'fireball': ['Attack', 'Fire'] }, 'keyword map keys normalised to lowercase');
 eq(R.isAttackSpell(['Attack', 'Fire']), true, 'Attack-keyword spell counts');

@@ -166,3 +166,6 @@ live in the Choices tab instead.
 
 ## Update — Fireball keyword fix + Damage Effects under their attack (2026-11-02)
 - rules.js: normalizeKeywordMap, damageEffectParents (parses "X Damage Effect, Passive" prefixes, curly apostrophe normalised). app.js: keywords normalised on load; damageEffectsFor() lists ranked Damage Effects under manual and derived attacks. Tests 93 -> see run below. Subresources bumped to ?v=6.
+
+## Update — roll toast + Damage Effects linked both ways (2026-11-02)
+- showRoll() now shows a dismissible fixed toast in addition to the Vitals tray result. cardRelationHtml() added to Skills cards; renderSkills/renderSpells fetch the library on first visit like Attacks does. Tests 103, 0 failed. Subresources bumped to ?v=7.

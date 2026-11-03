@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=6').then(function (r) {
+    return fetch(path + '?v=7').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -519,6 +519,21 @@
     html += '</div>';
     return html;
   }
+  /* Both directions of the Damage Effect relation, for the Skills tab:
+   * an attack skill's card lists the Damage Effects ranked for it, and
+   * a Damage Effect's card names the attack skills it applies to. The
+   * condition itself lives in the effect's Rulebook box below. */
+  function cardRelationHtml(card) {
+    if (card.kind !== 'skill') return '';
+    var lib = findLib(card.name);
+    if (!lib) return '';
+    var parents = R.damageEffectParents(lib.base_effect || '');
+    if (parents.length) {
+      return '<p><strong>Damage Effect — applies to:</strong> ' + esc(parents.join(', ')) + ' (only when using that attack and meeting its condition).</p>';
+    }
+    if (R.isAttackSkill(card.name)) return damageEffectsFor(card.name);
+    return '';
+  }
   function cardHtml(card) {
     var rank = cardRank(card);
     var eff = R.effectiveRank(rank, card, state.race, state.class);
@@ -541,11 +556,18 @@
       + '<button type="button" onclick="DCC.rollCard(\'' + card.kind + '\',\'' + card.id + '\')">Roll d20</button>'
       + '<button type="button" onclick="DCC.delCard(\'' + card.kind + '\',\'' + card.id + '\')">Delete</button></div>'
       + '<p>Rank ' + rank + (group ? ' (Group +' + group + ' in rank)' : '') + (eff !== rank ? ' — effective Rank ' + eff + ' (Mage −3)' : '') + (floor ? ' — floor ' + floor : '') + '</p>'
+      + cardRelationHtml(card)
       + '<label>Notes <input type="text" value="' + esc(card.effect || '') + '" onchange="DCC.setCardEffect(\'' + card.kind + '\',\'' + card.id + '\',this.value)"></label>'
       + rulebookBox(card) + '</div>';
   }
-  function renderSkills() { $('skill-list').innerHTML = state.skills.map(cardHtml).join('') || '<p class="hint">No skills yet. Pick from the rulebook or add a custom skill.</p>'; }
-  function renderSpells() { $('spell-list').innerHTML = state.spells.map(cardHtml).join('') || '<p class="hint">No spells yet. Pick from the rulebook or add a custom spell.</p>'; }
+  function renderSkills() {
+    if (!cache.skills) { ensureSkills().then(function () { renderAll(); }).catch(function () {}); }
+    $('skill-list').innerHTML = state.skills.map(cardHtml).join('') || '<p class="hint">No skills yet. Pick from the rulebook or add a custom skill.</p>';
+  }
+  function renderSpells() {
+    if (!cache.skills) { ensureSkills().then(function () { renderAll(); }).catch(function () {}); }
+    $('spell-list').innerHTML = state.spells.map(cardHtml).join('') || '<p class="hint">No spells yet. Pick from the rulebook or add a custom spell.</p>';
+  }
   /* Derived attacks: every ranked skill whose Chapter 4 Type line says
    * "Melee Attack" or "Ranged Attack", and every ranked spell whose
    * Chapter 4 keywords include "Attack", appears in the Attacks tab
@@ -841,6 +863,29 @@
     lastRollText = text;
     var el = $('roll-result');
     if (el) el.textContent = text;
+    // The Dice Tray lives on the Vitals tab, so a roll made from the
+    // Skills, Spells, or Attacks tab used to show nothing at all until
+    // the player switched back to Vitals — which reads as a dead
+    // button. Show the result immediately, on whatever tab is open,
+    // as a dismissible toast; the Dice Tray keeps the same result for
+    // later, and Copy result still copies it from there.
+    var toast = $('roll-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'roll-toast';
+      toast.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a2f3a;color:#e8e6df;padding:10px 16px;border:1px solid #6b5a2a;border-radius:8px;z-index:9999;max-width:92vw;text-align:center;';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = '';
+    var span = document.createElement('span');
+    span.textContent = text;
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = 'Dismiss';
+    close.style.marginLeft = '12px';
+    close.addEventListener('click', function () { if (toast.parentNode) toast.parentNode.removeChild(toast); });
+    toast.appendChild(span);
+    toast.appendChild(close);
   }
   function rollD20Check(label, mod) {
     var die = R.rollDie(20);

@@ -159,3 +159,7 @@ rebuild on every keystroke.
 ## Update — Fireball keyword fix + Damage Effects under their attack (2026-11-02)
 - Fixed a case bug: spell keyword keys are stored UPPERCASE but were looked up lowercased, so no spell keyword ever matched — Fireball did not appear as a derived attack, spell Keyword lines were empty, and the Lifebringer Heal bonus could not fire. Keywords are now normalised on load.
 - Damage Effects are now shown under the attack they modify in the Attacks tab (e.g. Smush under Foot Soldier, with its full book condition: only targets at 20% Health Bar or less, once per round, x2 total damage, with rank upgrades shown on its Skills card). They are still never listed as attacks themselves.
+
+## Update — roll toast + Damage Effects linked both ways (2026-11-02)
+- Roll buttons no longer look dead: every roll now also pops a dismissible toast on whatever tab you are on (the Dice Tray on Vitals still keeps the same result). Previously the result only went to the Vitals tray, which is hidden on the Skills/Spells/Attacks tabs.
+- All 7 Damage Effects are linked both ways: an attack skill's card lists the Damage Effects ranked for it, a Damage Effect's card names the attacks it applies to, and the Attacks tab lists ranked Damage Effects under their parent attack. Parsed from the book's "X Damage Effect, Passive" text for all 7, unit-tested.
