@@ -185,3 +185,4 @@ live in the Choices tab instead.
 ## Update — story tabs (2026-11-03, in v=10)
 - state.story + 8 panels + render/handlers in app.js; All tab shows story counts. Subresources bumped to ?v=10.
 - Fleshed out before push (book-checked): Faith tier/tithe/streak/missed, Pets level/attitude/role/HP with floor-derived skill ranks, Mounts size/move/step/upgrades/trample, Crafting table type/tier/effect-skill/enchantments. No new unit tests (sheet UI, not rules maths); live test is the check.
+- v=11 (built, not yet pushed): Table 9 size picker on Pets and Mounts (sizeOptions/sizeLabel in app.js; subresources bumped to ?v=11). Existing sizes 3 (test pet) and 5 (test mount) map to Petite and Large; out-of-range stored sizes show as Custom.

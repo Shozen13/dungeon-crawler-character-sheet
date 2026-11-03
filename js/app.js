@@ -609,9 +609,9 @@
   function renderPets() {
     $('pet-list').innerHTML = story().pets.map(function (c) {
       return '<div class="card"><h4>' + esc(c.name) + (c.kind ? ' — ' + esc(c.kind) : '') + '</h4>'
-        + '<p>Level ' + num(c.level, 1) + ' · Attitude: ' + esc(c.attitude || 'Calm') + ' · Role: ' + esc(c.role || 'None') + ' · Health Bar slots: ' + petHpSlots(c) + ' (size ' + num(c.size, 3) + ', +1 per level, max 10)</p>'
+        + '<p>Level ' + num(c.level, 1) + ' · Attitude: ' + esc(c.attitude || 'Calm') + ' · Role: ' + esc(c.role || 'None') + ' · Health Bar slots: ' + petHpSlots(c) + ' (size ' + sizeLabel(c.size) + ', +1 per level, max 10)</p>'
         + '<div class="row"><label>Level <input type="number" min="1" value="' + num(c.level, 1) + '" onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'level\',this.value)"></label>'
-        + '<label>Size <input type="number" min="1" value="' + num(c.size, 3) + '" onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'size\',this.value)"></label>'
+        + '<label>Size (Table 9) <select onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'size\',this.value)">' + sizeOptions(num(c.size, 3)) + '</select></label>'
         + '<label>Attitude <select onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'attitude\',this.value)">'
         + ['Hostile', 'Calm', 'Friendly', 'Bonded'].map(function (a) { return '<option' + ((c.attitude || 'Calm') === a ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select></label>'
         + '<label>Role <select onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'role\',this.value)">'
@@ -642,8 +642,8 @@
       });
       var effSize = size + sizeBonus;
       return '<div class="card"><h4>' + esc(c.name) + (c.kind ? ' — ' + esc(c.kind) : '') + '</h4>'
-        + '<p>Size ' + effSize + ' · Move ' + (move + moveBonus) + 'ft · Step ' + num(c.step, 10) + 'ft · Health Bar slots: ' + effSize + ' (mounts do not level) · DR bonus: +' + drBonus + (trample ? ' · Trample: Rank = Floor ' + state.floor + ', ' + effSize + 'd6 Bludgeoning vs prone foes' : '') + '</p>'
-        + '<div class="row"><label>Size <input type="number" min="1" value="' + size + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'size\',this.value)"></label>'
+        + '<p>Size ' + sizeLabel(effSize) + ' · Move ' + (move + moveBonus) + 'ft · Step ' + num(c.step, 10) + 'ft · Health Bar slots: ' + effSize + ' (mounts do not level) · DR bonus: +' + drBonus + (trample ? ' · Trample: Rank = Floor ' + state.floor + ', ' + effSize + 'd6 Bludgeoning vs prone foes' : '') + '</p>'
+        + '<div class="row"><label>Size (Table 9) <select onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'size\',this.value)">' + sizeOptions(size) + '</select></label>'
         + '<label>Move (ft) <input type="number" min="0" value="' + move + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'move\',this.value)"></label>'
         + '<label>Step (ft) <input type="number" min="0" value="' + num(c.step, 10) + '" onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'step\',this.value)"></label>'
         + '<label>Attitude <select onchange="DCC.storySet(\'mounts\',\'' + c.id + '\',\'attitude\',this.value)">'
@@ -668,6 +668,25 @@
     }).join('') || '<p class="hint">No sponsors yet.</p>';
   }
   var FAITH_TITHE = { none: 0, acolyte: 0.05, devotee: 0.10, zealot: 0.20 };
+  // Table 9: Creature Size (book). No per-creature stat table exists;
+  // size is the number behind pet/mount Health Bar slots and Trample dice.
+  var CREATURE_SIZES = [
+    { v: 1, name: 'Tiny', ex: 'Scatterer, Rat' },
+    { v: 2, name: 'Small', ex: 'Cat, Raccoon' },
+    { v: 3, name: 'Petite', ex: 'Goblin, Boar' },
+    { v: 4, name: 'Medium', ex: 'Human, Wolf' },
+    { v: 5, name: 'Large', ex: 'Horse, Mantaur' },
+    { v: 6, name: 'Huge', ex: 'Elephant, Rhino' },
+    { v: 7, name: 'Colossal', ex: 'Dinosaur, Dragon' },
+    { v: 8, name: 'Gargantuan', ex: 'Kaiju' }
+  ];
+  function sizeEntry(v) { return CREATURE_SIZES.find(function (s) { return s.v === num(v, 0); }); }
+  function sizeLabel(v) { var s = sizeEntry(v); return s ? s.v + ' — ' + s.name + ' (' + s.ex + ')' : 'Size ' + num(v, 0); }
+  function sizeOptions(selected) {
+    var opts = CREATURE_SIZES.map(function (s) { return '<option value="' + s.v + '"' + (num(selected, 0) === s.v ? ' selected' : '') + '>' + s.v + ' — ' + s.name + ' (' + s.ex + ')</option>'; }).join('');
+    if (!sizeEntry(selected)) opts = '<option value="' + num(selected, 0) + '" selected>Custom (' + num(selected, 0) + ')</option>' + opts;
+    return opts;
+  }
   var CRAFT_SKILL = { 'Damage Resistance': 'Smithing', 'Explosives': 'Explosives Handling or Goblin Explosives', 'Potions': 'Alchemy', 'Scrolls': 'Calligraphy', 'Spells': 'Arcane', 'Tattoos': 'Tattoo Artistry', 'Other': '—' };
   function renderFaith() {
     var f = story().faith;
