@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path).then(function (r) {
+    return fetch(path + '?v=3').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
