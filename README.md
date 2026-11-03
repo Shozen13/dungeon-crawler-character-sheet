@@ -155,3 +155,7 @@ rebuild on every keystroke.
 
 ## Update — derived attacks (2026-11-02)
 - Attacks tab now lists, below your own attacks, every ranked skill whose Chapter 4 Type line says Melee Attack or Ranged Attack (26 skills) and every ranked spell whose keywords include "Attack" (26 spells), with rank, to-hit stat/mod, damage, mana cost where present, and a Roll to hit button. They are derived, not editable here — change rank/stat on the Skills/Spells tab. A name already present as one of your own attacks (including UNARMED COMBAT) is shown once, as your own attack. Custom skills/spells never appear on their own; add them as your own attacks.
+
+## Update — Fireball keyword fix + Damage Effects under their attack (2026-11-02)
+- Fixed a case bug: spell keyword keys are stored UPPERCASE but were looked up lowercased, so no spell keyword ever matched — Fireball did not appear as a derived attack, spell Keyword lines were empty, and the Lifebringer Heal bonus could not fire. Keywords are now normalised on load.
+- Damage Effects are now shown under the attack they modify in the Attacks tab (e.g. Smush under Foot Soldier, with its full book condition: only targets at 20% Health Bar or less, once per round, x2 total damage, with rank upgrades shown on its Skills card). They are still never listed as attacks themselves.

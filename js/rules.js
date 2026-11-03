@@ -411,6 +411,27 @@
     'SHOTGUN': 'Ranged Attack', 'SHURIKEN': 'Ranged Attack', 'SLINGSHOT': 'Ranged Attack'
   };
   function skillAttackType(name) { return SKILL_ATTACK_TYPES[(name || '').trim().toUpperCase()] || null; }
+  /* Damage Effects are conditional, not attacks: a Damage Effect only
+   * applies when you use one of its parent attack skills and meet its
+   * condition (e.g. Smush only with Foot Soldier, only against a
+   * target at 20% Health Bar or less, once per round, x2 total
+   * damage). Its library effect text names its parents up front:
+   * "Foot Soldier Damage Effect, Passive. ..." or "Pugilism or
+   * Wrasslin' Damage Effect, Passive. ...". This returns those parent
+   * attack names, or [] for anything that is not a Damage Effect. */
+  function damageEffectParents(effect) {
+    var m = /^(.+?) Damage Effect, Passive/.exec((effect || '').replace(/[’‘]/g, "'"));
+    if (!m) return [];
+    return m[1].split(/,|\s+or\s+/).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+  /* Spell keyword lookup keys are stored UPPERCASE in the data file
+   * but looked up lowercased, so normalise the map on load — otherwise
+   * every spell keyword lookup (Attack included) silently misses. */
+  function normalizeKeywordMap(map) {
+    var out = {};
+    Object.keys(map || {}).forEach(function (k) { out[normName(k)] = map[k]; });
+    return out;
+  }
   function isAttackSkill(name) { return !!skillAttackType(name); }
   function isAttackSpell(keywords) {
     return (keywords || []).some(function (k) { return String(k).toLowerCase() === 'attack'; });
@@ -513,7 +534,8 @@
     attackDamageStat: attackDamageStat, tigranMoveBonus: tigranMoveBonus,
     normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses,
     applyRest: applyRest, rollDie: rollDie, parseDiceFormula: parseDiceFormula, rollFormula: rollFormula,
-    isAttackSkill: isAttackSkill, skillAttackType: skillAttackType, isAttackSpell: isAttackSpell
+    isAttackSkill: isAttackSkill, skillAttackType: skillAttackType, isAttackSpell: isAttackSpell,
+    damageEffectParents: damageEffectParents, normalizeKeywordMap: normalizeKeywordMap
   };
   global.DCCRules = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

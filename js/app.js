@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=5').then(function (r) {
+    return fetch(path + '?v=6').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -76,7 +76,7 @@
     return cache._p.races;
   }
   function ensureKeywords() {
-    if (!cache._p.keywords) cache._p.keywords = loadJSON('data/spell_keywords.json').then(function (d) { cache.keywords = d.keywords || {}; return cache.keywords; });
+    if (!cache._p.keywords) cache._p.keywords = loadJSON('data/spell_keywords.json').then(function (d) { cache.keywords = R.normalizeKeywordMap(d.keywords || {}); return cache.keywords; });
     return cache._p.keywords;
   }
   var libByName = null;
@@ -562,6 +562,24 @@
     if (card.kind === 'spell') return R.isAttackSpell(keywordCache[R.normName(card.name)] || []);
     return false;
   }
+  /* Ranked Damage Effects that apply to this attack, if any. A Damage
+   * Effect is conditional on its parent attack and its own condition,
+   * so it is shown here, under the attack it modifies, with its full
+   * book condition text — never as an attack of its own. */
+  function damageEffectsFor(attackName) {
+    var key = R.normName(attackName);
+    var found = state.skills.filter(function (c) {
+      if (cardRank(c) < 1) return false;
+      var lib = findLib(c.name);
+      if (!lib) return false;
+      return R.damageEffectParents(lib.base_effect || '').some(function (p) { return R.normName(p) === key; });
+    });
+    if (!found.length) return '';
+    return '<p><strong>Damage Effects you have ranked for this attack:</strong> ' + found.map(function (c) {
+      var lib = findLib(c.name);
+      return esc(c.name) + ' (Rank ' + cardRank(c) + ') — ' + esc(lib.base_effect || '');
+    }).join('; ') + '</p>';
+  }
   function renderAttacks() {
     // The library is needed to tell Attack Skills from other skills, and
     // it is only loaded on demand — fetch it on first visit to this tab
@@ -575,6 +593,7 @@
       return '<div class="card"><h4>' + esc(a.name) + '</h4>'
         + '<p>To hit: d20 + ' + a.toHitStat.toUpperCase() + ' Mod (+' + mod + ')</p>'
         + '<p>Damage: ' + esc(a.damage) + (override ? ' — damage uses ' + override.toUpperCase() + ' Mod instead (race/class override; to-hit unchanged)' : '') + '</p>'
+        + damageEffectsFor(a.name)
         + '<p>' + esc(a.notes || '') + '</p>'
         + '<button type="button" onclick="DCC.rollAttack(\'' + a.id + '\')">Roll to hit</button>'
         + '<button type="button" onclick="DCC.delAttack(\'' + a.id + '\')">Delete</button></div>';
@@ -592,6 +611,7 @@
         + '<p>To hit: d20 + ' + c.stat.toUpperCase() + ' Mod (+' + mod + ')</p>'
         + '<p>Damage: ' + esc((lib && lib.base_damage) || '—') + (override ? ' — damage uses ' + override.toUpperCase() + ' Mod instead (race/class override; to-hit unchanged)' : '')
         + ((lib && lib.mana_cost) ? ' — Mana: ' + esc(lib.mana_cost) : '') + '</p>'
+        + (c.kind === 'skill' ? damageEffectsFor(c.name) : '')
         + '<p class="hint">From your ' + (c.kind === 'spell' ? 'Spells' : 'Skills') + ' tab — edit rank or stat there.</p>'
         + '<button type="button" onclick="DCC.rollCard(\'' + c.kind + '\',\'' + c.id + '\')">Roll to hit</button></div>';
     }).join('');

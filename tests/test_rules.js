@@ -102,6 +102,11 @@ eq(R.isAttackSkill('Smush'), false, 'Smush is a Damage Effect, Passive — not a
 eq(R.isAttackSkill('Choke Out'), false, 'Choke Out is a Damage Effect, Passive — not an attack');
 eq(R.isAttackSkill('Cooking'), false, 'utility skill does not count');
 eq(R.isAttackSkill('Made Up Skill'), false, 'custom skill (no Type line) does not count');
+eq(R.damageEffectParents('Foot Soldier Damage Effect, Passive. Only applies to targets with 20% Health Bar or less.'), ['Foot Soldier'], 'Smush parents: Foot Soldier');
+eq(R.damageEffectParents('Foot Soldier, Noggin Nocker, or Pugilism Damage Effect, Passive. Cooldown: 30 hours.'), ['Foot Soldier', 'Noggin Nocker', 'Pugilism'], 'Powerful Strike parents: three attacks');
+eq(R.damageEffectParents('Pugilism or Wrasslin’ Damage Effect, Passive.'), ['Pugilism', "Wrasslin'"], 'Dirty Fighting parents, curly apostrophe normalised');
+eq(R.damageEffectParents('Melee bashing weapon attack with no additional base effect stated.'), [], 'Club is not a Damage Effect');
+eq(R.normalizeKeywordMap({ 'FIREBALL': ['Attack', 'Fire'] }), { 'fireball': ['Attack', 'Fire'] }, 'keyword map keys normalised to lowercase');
 eq(R.isAttackSpell(['Attack', 'Fire']), true, 'Attack-keyword spell counts');
 eq(R.isAttackSpell(['Heal', 'Passive']), false, 'Heal spell does not count');
 eq(R.isAttackSpell([]), false, 'spell with no keywords does not count');

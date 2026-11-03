@@ -163,3 +163,6 @@ live in the Choices tab instead.
 
 ## Update — derived attacks (2026-11-02)
 - renderAttacks derives attack skills/spells from cards (rules.js skillAttackType/isAttackSpell, unit-tested, 89 tests passing); the 7 hand-to-hand Damage Effects are Passive, not Melee/Ranged Attack, so they are excluded. The library is fetched on first visit to the Attacks tab so a reloaded sheet does not show an empty derived list. Subresources bumped to ?v=5.
+
+## Update — Fireball keyword fix + Damage Effects under their attack (2026-11-02)
+- rules.js: normalizeKeywordMap, damageEffectParents (parses "X Damage Effect, Passive" prefixes, curly apostrophe normalised). app.js: keywords normalised on load; damageEffectsFor() lists ranked Damage Effects under manual and derived attacks. Tests 93 -> see run below. Subresources bumped to ?v=6.
