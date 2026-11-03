@@ -214,7 +214,7 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
     var t = document.createElement('div');
     t.textContent = 'Exported ' + a.download;
-    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a2f3a;color:#e8e6df;padding:10px 16px;border:1px solid #6b5a2a;border-radius:8px;z-index:9999;';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#141414;color:#f2f2ec;padding:10px 16px;border:1px solid #a855f7;border-radius:8px;z-index:9999;';
     document.body.appendChild(t);
     setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 3000);
   }
@@ -1240,7 +1240,7 @@
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'roll-toast';
-      toast.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a2f3a;color:#e8e6df;padding:10px 16px;border:1px solid #6b5a2a;border-radius:8px;z-index:9999;max-width:92vw;text-align:center;';
+      toast.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#141414;color:#f2f2ec;padding:10px 16px;border:1px solid #a855f7;border-radius:8px;z-index:9999;max-width:92vw;text-align:center;';
       document.body.appendChild(toast);
     }
     toast.innerHTML = '';
