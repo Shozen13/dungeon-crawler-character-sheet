@@ -606,6 +606,14 @@
     }).join('') || '<p class="hint">No journal entries yet.</p>';
   }
   function petHpSlots(c) { return Math.min(10, num(c.size, 3) + Math.max(0, num(c.level, 1) - 1)); }
+  // Pet Level 1 Special Abilities (book, p.231): five bullets, shown
+  // here as six picker entries because the movement bullet (swim or
+  // burrow at 30ft, or flight or jump at 50ft) is split into its two
+  // halves for picking. Each picked entry still counts as one ability.
+  // Level 15 benefits and GM-approved abilities stay possible through
+  // the free-text field.
+  var PET_ABILITIES = ['Move 60ft', 'Taunt or Catcher (Rank = Floor)', 'Swim or burrow (Move 30ft)', 'Flight or jump (Move 50ft)', 'Heightened Senses', 'Resistance to an uncommon damage type'];
+  function petRoleAllowance(role) { return role === 'Tank' ? 1 : role === 'Utility' ? 2 : role === 'Aggressive' ? 0 : null; }
   function renderPets() {
     $('pet-list').innerHTML = story().pets.map(function (c) {
       return '<div class="card"><h4>' + esc(c.name) + (c.kind ? ' — ' + esc(c.kind) : '') + '</h4>'
@@ -619,10 +627,23 @@
         + '<label>Notes <input type="text" value="' + esc(c.notes || '') + '" onchange="DCC.storySet(\'pets\',\'' + c.id + '\',\'notes\',this.value)"></label>'
         + '<p><strong>Attacks / Spells / Abilities (Rank = Floor ' + state.floor + '):</strong> ' + (c.skills || []).map(function (s) { return esc(s.name); }).join(', ') + '</p>'
         + '<p><strong>Special Abilities:</strong> ' + (c.abilities || []).join(', ') + '</p>'
+        + (function () {
+          var allow = petRoleAllowance(c.role), extra = num(c.level, 1) >= 15 ? 1 : 0, total = allow === null ? null : allow + extra;
+          var line = '';
+          if (c.role === 'Tank') line += '<p>Tank: DR = Floor (' + state.floor + ')</p>';
+          if (c.role === 'Aggressive') line += '<p>Aggressive: Back Claw and Bite (Rank = Floor ' + state.floor + '), +' + state.floor + ' damage to all Animal Attacks, no Special Abilities</p>';
+          if (total !== null) {
+            line += '<p>Abilities allowed: ' + total + ' (' + allow + ' for ' + esc(c.role) + (extra ? ' + 1 Level 15 benefit' : '') + '), listed: ' + (c.abilities || []).length
+              + ((c.abilities || []).length > total ? ' — over the role allowance' : '') + '</p>';
+          }
+          return line;
+        })()
         + '<div class="row"><label>Skill / Attack / Spell <input type="text" id="comp-skill-name-' + c.id + '" placeholder="Name"></label>'
         + '<button type="button" onclick="DCC.compSkillAdd(\'pets\',\'' + c.id + '\')">Add</button>'
-        + '<label>Special Ability <input type="text" id="comp-ability-' + c.id + '" placeholder="e.g. Move 60ft"></label>'
-        + '<button type="button" onclick="DCC.compListAdd(\'pets\',\'' + c.id + '\',\'abilities\',\'comp-ability-\')">Add ability</button>'
+        + '<label>Special Ability <select id="comp-ability-select-' + c.id + '">' + PET_ABILITIES.map(function (a) { return '<option>' + esc(a) + '</option>'; }).join('') + '</select></label>'
+        + '<button type="button" onclick="DCC.compSelectAdd(\'pets\',\'' + c.id + '\',\'abilities\',\'comp-ability-select-\')">Add ability</button>'
+        + '<label>Custom ability <input type="text" id="comp-ability-' + c.id + '" placeholder="e.g. Level 15 benefit"></label>'
+        + '<button type="button" onclick="DCC.compListAdd(\'pets\',\'' + c.id + '\',\'abilities\',\'comp-ability-\')">Add custom</button>'
         + '<button type="button" onclick="DCC.storyDel(\'pets\',\'' + c.id + '\')">Delete pet</button></div>'
         + (c.skills || []).map(function (s) { return '<p>' + esc(s.name) + ' — Rank = Floor ' + state.floor + ' <button type="button" onclick="DCC.compSkillDel(\'pets\',\'' + c.id + '\',\'' + s.id + '\')">Remove</button></p>'; }).join('')
         + (c.abilities || []).map(function (a, ai) { return '<p>' + esc(a) + ' <button type="button" onclick="DCC.compListDel(\'pets\',\'' + c.id + '\',\'abilities\',' + ai + ')">Remove</button></p>'; }).join('')
