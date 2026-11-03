@@ -336,6 +336,63 @@
     return (raceName === 'Tigran' || className === 'Tigran') ? 10 : 0;
   }
 
+
+  /* Item slot normalisation: the rulebook lists slots like "Hands/Holding"
+   * or "Hand/Holding"; the sheet's slot set uses "Hands". Unknown slots
+   * fall back to "Other" rather than silently landing on the first option
+   * of a dropdown (which is how a Hands item once displayed as Head). */
+  function normalizeSlot(raw) {
+    if (!raw) return 'Other';
+    var v = String(raw).trim().toLowerCase();
+    if (v === 'hand' || v === 'hands' || v === 'hand/holding' || v === 'hands/holding' || v === 'holding') return 'Hands';
+    if (v === 'head') return 'Head';
+    if (v === 'torso' || v === 'body' || v === 'chest') return 'Torso';
+    if (v === 'legs' || v === 'leg') return 'Legs';
+    if (v === 'feet' || v === 'foot') return 'Feet';
+    if (v === 'accessory') return 'Accessory';
+    if (v === 'weapon') return 'Weapon';
+    if (v === 'other') return 'Other';
+    return 'Other';
+  }
+
+  /* Conservative rulebook-item bonus parsing, run ONLY when a rulebook
+   * item is picked (never on load, never on custom items). Only clear,
+   * numeric patterns become structured bonuses the sheet can apply while
+   * equipped; everything else stays as book text for the player to add by
+   * hand. Skill grants only count when the named skill/spell is in the
+   * Chapter 4 library, so a phrase like "+1 Shield Block Skill" (Shield
+   * Block is not a library entry) stays text-only instead of inventing
+   * a card. At most 5 bonuses, matching the sheet's per-item limit. */
+  function parseItemBonuses(effect, libraryEntries) {
+    var out = [];
+    if (!effect) return out;
+    var byName = {};
+    (libraryEntries || []).forEach(function (e) { byName[normName(e.name)] = e; });
+    function add(b) {
+      for (var i = 0; i < out.length; i++) {
+        var o = out[i];
+        if (o.type === b.type && o.stat === b.stat && normName(o.skillName || '') === normName(b.skillName || '')) {
+          o.amount += b.amount; return;
+        }
+      }
+      if (out.length < 5) out.push(b);
+    }
+    var m, re;
+    re = /\+(\d+)\s+(?:Damage Resistance|DR)(?![A-Za-z])/gi;
+    while ((m = re.exec(effect))) add({ type: 'dr', amount: parseInt(m[1], 10) });
+    re = /\+(\d+)\s+Evade(?![A-Za-z])/gi;
+    while ((m = re.exec(effect))) add({ type: 'evade', amount: parseInt(m[1], 10) });
+    var statMap = { strength: 'str', dexterity: 'dex', constitution: 'con', intelligence: 'int', charisma: 'cha' };
+    re = /\+(\d+)\s+(Strength|Dexterity|Constitution|Intelligence|Charisma)(?![- ]based)/gi;
+    while ((m = re.exec(effect))) add({ type: 'stat', stat: statMap[m[2].toLowerCase()], amount: parseInt(m[1], 10) });
+    re = /\+(\d+)\s+([A-Za-z][A-Za-z' \-]+?)\s+Skill\b/gi;
+    while ((m = re.exec(effect))) {
+      var lib = byName[normName(m[2].trim())];
+      if (lib) add({ type: 'grant', skillName: lib.name, kind: lib.kind, amount: parseInt(m[1], 10) });
+    }
+    return out;
+  }
+
   var api = {
     STAT_KEYS: STAT_KEYS, STAT_NAMES: STAT_NAMES, STAT_ABBR: STAT_ABBR,
     getModifier: getModifier, derivedBase: derivedBase, statTotal: statTotal,
@@ -351,7 +408,7 @@
     parseChoiceGrants: parseChoiceGrants, groupBonusFor: groupBonusFor,
     magePenalty: magePenalty, effectiveRank: effectiveRank,
     attackDamageStat: attackDamageStat, tigranMoveBonus: tigranMoveBonus,
-    normName: normName, clampInt: clampInt
+    normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses
   };
   global.DCCRules = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

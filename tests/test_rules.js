@@ -66,5 +66,31 @@ eq(R.totalDR(5, 2, 1), 8, 'DR = Armor + Buffs + Race/Class');
 eq(R.evadeString(3, 1, 0, 0), 'd20 + 1d4 + 3', 'evade string with 1d4');
 eq(R.totalHp(4), 40, 'HP = 10 slots x mod 4');
 
+// Item slot normalisation + rulebook bonus parsing (live-test fixes)
+eq(R.normalizeSlot('Hand/Holding'), 'Hands', 'buckler slot Hand/Holding -> Hands');
+eq(R.normalizeSlot('Hands/Holding'), 'Hands', 'slot Hands/Holding -> Hands');
+eq(R.normalizeSlot('Head'), 'Head', 'slot Head unchanged');
+eq(R.normalizeSlot('Mystery Slot'), 'Other', 'unknown slot -> Other');
+eq(R.parseItemBonuses('Grants +1 Shield Block Skill and +3 Damage Resistance. Listed Gear Slot is Hands/Holding;', []),
+  [{ type: 'dr', amount: 3 }], 'buckler: DR 3 only, Shield Block not invented');
+eq(R.parseItemBonuses('+2 Strength and +1 First Aid Skill', [{ name: 'FIRST AID', kind: 'skill' }]),
+  [{ type: 'stat', stat: 'str', amount: 2 }, { type: 'grant', skillName: 'FIRST AID', kind: 'skill', amount: 1 }], 'item stat + grant parse');
+eq(R.parseItemBonuses('A plain cloak with no numbers.', []), [], 'item with no bonuses parses to empty');
+// Backgrounds data (book Tables 12-15): shape + every skill in the library
+const fs = require('fs');
+const bg = JSON.parse(fs.readFileSync(__dirname + '/../data/backgrounds.json', 'utf8'));
+const libAll = JSON.parse(fs.readFileSync(__dirname + '/../data/skills_spells.json', 'utf8'));
+const libNames = new Set(libAll.map(e => e.name.toUpperCase()));
+eq(bg.categories.length, 4, 'backgrounds: 4 categories');
+eq(bg.categories.map(c => c.backgrounds.length), [12, 12, 12, 12], 'backgrounds: 12 per category');
+eq(bg.categories.map(c => c.rank), [1, 1, 3, 2], 'background ranks 1/1/3/2');
+let bgBad = [];
+bg.categories.forEach(c => c.backgrounds.forEach(b => {
+  if (b.skills.length !== 3) bgBad.push(b.name);
+  b.skills.forEach(sk => { if (!libNames.has(sk.name.toUpperCase())) bgBad.push(sk.name); });
+}));
+eq(bgBad, [], 'backgrounds: every skill in Chapter 4 library');
+eq(bg.combat_weapons.every(w => libNames.has(w.toUpperCase())), true, 'background combat weapons in library');
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

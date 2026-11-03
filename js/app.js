@@ -42,13 +42,19 @@
       moveVal: 20, stepVal: 10, bossKills: 0, pkKills: 0,
       buffs: [], debuffs: [], hotlist: [],
       skills: [], spells: [], attacks: [], items: [],
-      raceClassApplied: [], raceClassChoices: {}, raceClassMoveApplied: null,
+      raceClassApplied: [], raceClassChoices: {}, raceClassMoveApplied: null, backgrounds: null,
       activeTab: 'vitals'
     };
   }
   var state = blankState();
   var hasSaved = false;
 
+  function refreshWizard() {
+    try {
+      var w = document.getElementById('wizard');
+      if (w && !w.hidden && window.Wizard && window.Wizard.render) window.Wizard.render();
+    } catch (e) { /* wizard not open: nothing to refresh */ }
+  }
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
@@ -204,6 +210,11 @@
     a.download = (state.name || 'crawler').replace(/[^a-z0-9-_]+/gi, '-') + '-sheet-v2.json';
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    var t = document.createElement('div');
+    t.textContent = 'Exported ' + a.download;
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a2f3a;color:#e8e6df;padding:10px 16px;border:1px solid #6b5a2a;border-radius:8px;z-index:9999;';
+    document.body.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 3000);
   }
   function importFile(file) {
     var reader = new FileReader();
@@ -331,6 +342,7 @@
     pruneBonusCards();
     saveSoon();
     renderAll();
+    refreshWizard();
   }
   function setChoice(cid, kind, sourceName, grant, pickIdx, name) {
     reverseSource('choice', cid);
@@ -565,7 +577,7 @@
       + '<p>' + esc(it.effect || '') + '</p>'
       + '<div class="row"><label>Name <input type="text" value="' + esc(it.name) + '" onchange="DCC.renameItem(\'' + it.id + '\',this.value)"></label>'
       + '<label>Slot <select onchange="DCC.setItemSlot(\'' + it.id + '\',this.value)">'
-      + ['Head', 'Torso', 'Hands', 'Legs', 'Feet', 'Accessory', 'Weapon', 'Other'].map(function (s) { return '<option' + (it.slot === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>'
+      + (function () { var slots = ['Head', 'Torso', 'Hands', 'Legs', 'Feet', 'Accessory', 'Weapon', 'Other']; if (slots.indexOf(it.slot) < 0) slots.unshift(it.slot); return slots.map(function (s) { return '<option' + (it.slot === s ? ' selected' : '') + '>' + s + '</option>'; }).join(''); })() + '</select></label>'
       + (it.equipped
         ? '<button type="button" onclick="DCC.setEquipped(\'' + it.id + '\',false)">Unequip</button>'
         : '<button type="button" onclick="DCC.setEquipped(\'' + it.id + '\',true)">Equip</button>')
@@ -683,14 +695,16 @@
     openPicker(kind === 'spell' ? 'Pick a spell' : 'Pick a skill', cands, function (c) {
       var card = { id: uid(), name: c.name, kind: kind === 'spell' ? 'spell' : 'skill', ownRank: 1, stat: c.stat ? c.stat.toLowerCase() : (kind === 'spell' ? 'int' : 'str'), checkType: 'Active Check', effect: '', used: false, gearGrants: {} };
       (kind === 'spell' ? state.spells : state.skills).push(card);
-      saveSoon(); renderAll();
+      saveSoon(); renderAll(); refreshWizard();
     });
   }
   async function openItemPicker() {
     var list = await ensureItems();
+    var skills = [];
+    try { skills = await ensureSkills(); } catch (e) { skills = []; }
     openPicker('Pick an item', list, function (c) {
-      state.items.push({ id: uid(), name: c.name, kind: c.kind, source: c.source, slot: c.gear_slot || 'Other', effect: c.effect || '', bonuses: [], equipped: false });
-      saveSoon(); renderAll();
+      state.items.push({ id: uid(), name: c.name, kind: c.kind, source: c.source, slot: R.normalizeSlot(c.gear_slot), effect: c.effect || '', bonuses: R.parseItemBonuses(c.effect || '', skills), equipped: false });
+      saveSoon(); renderAll(); refreshWizard();
     });
   }
   async function openRaceClassPicker(kind) {
@@ -765,7 +779,7 @@
     blankState: blankState,
     renderAll: renderAll, showTab: showTab, saveNow: saveNow, saveSoon: saveSoon,
     ensureSkills: ensureSkills, ensureItems: ensureItems, ensureRaces: ensureRaces, ensureKeywords: ensureKeywords,
-    findLib: findLib, setRaceClass: setRaceClass, choiceSections: choiceSections,
+    findLib: findLib, cardRank: cardRank, setRaceClass: setRaceClass, choiceSections: choiceSections,
     openSkillPicker: openSkillPicker, openItemPicker: openItemPicker, openRaceClassPicker: openRaceClassPicker,
     showRaceClassInfo: showRaceClassInfo, openChoicePicker: openChoicePicker, pickerPick: pickerPick,
     setOwnBase: setOwnBase, setOwnEnh: setOwnEnh,

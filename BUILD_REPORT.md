@@ -148,3 +148,11 @@ live in the Choices tab instead.
 - Directly editing the Base field is a house-rule shortcut: it does
   not change the stat-bank counter, which tracks Distribute-dialog
   spends only (documented in the README).
+
+## Update — backgrounds wizard + live-test fixes (2026-11-02)
+- Guided wizard now follows the book's Step 1/2: pick one background each for childhood, adolescence, career, and hobby (Tables 12–15, 48 backgrounds), two of its three skills each at Rank 1/1/3/2, no double-dipping, plus Unarmed Combat Rank 3 and a weapon skill or attack spell at Rank 3 (or unarmed only). Background skills are tracked separately so re-picking in the wizard does not stack ranks or delete a skill you trained past its background rank.
+- Wizard now refreshes after race/class/skill/item picks, so Step 3 no longer shows stale Race/Class.
+- Rulebook items now auto-create structured bonuses on pick from clear numeric text only (+N DR, +N Evade, +N stat, +N library skill/spell) — capped at 5, editable/deletable like manual bonuses. Text-only effects stay text.
+- Item slots are normalised (Hand/Holding → Hands) and a slot outside the list is shown as-is instead of silently displaying as Head.
+- Export now shows a confirmation toast with the filename.
+- Two background-table parentheticals disagreed with the Chapter 4 entries (Gig Worker Escape Artist, Teacher Performance); the Chapter 4 stat was used, since a skill's associated stat is fixed per entry.
