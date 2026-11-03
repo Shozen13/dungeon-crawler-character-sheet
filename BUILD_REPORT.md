@@ -169,3 +169,12 @@ live in the Choices tab instead.
 
 ## Update — roll toast + Damage Effects linked both ways (2026-11-02)
 - showRoll() now shows a dismissible fixed toast in addition to the Vitals tray result. cardRelationHtml() added to Skills cards; renderSkills/renderSpells fetch the library on first visit like Attacks does. Tests 103, 0 failed. Subresources bumped to ?v=7.
+
+## Update — no manual UNARMED COMBAT attack (2026-11-02)
+- ensureUnarmed() rewritten: drops manual UNARMED COMBAT attacks, ensures the skill card instead, and is now also called on load (it previously ran only on import/Clear). Wizard no longer creates the manual attack. Subresources bumped to ?v=8.
+
+## Update — rank-adjusted attack damage + available Damage Effects (2026-11-02, in v=8)
+- rules.adjustedDamage() + renderAttacks use; damageEffectsFor() now also lists unranked library Damage Effects whose parents include the attack. Tests 110, 0 failed.
+
+## Update — Damage Effect use flow (2026-11-02, in v=8)
+- rules.effectDamage() computes modified damage (additive dice, Rank damage dice, total multipliers, Powerful Strike dice multiplier; no-damage effects return parent damage unchanged). app.js: effect prompt on attack-skill rolls, success confirm, Rank 0->1 / Used marking, pendingDamage banner with Roll/Clear on Attacks, Rank 0 cards hidden from Skills/Spells/All lists. Tests 116, 0 failed.

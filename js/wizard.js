@@ -24,7 +24,7 @@
   var bgSel = null; // {childhood:{bg,skills[]}, adolescence:{...}, career:{...}, hobby:{...}}
   var combatSel = null; // {type:'weapon'|'spell'|'none', name:''}
   function ensureBgData() {
-    if (!bgPromise) bgPromise = fetch('data/backgrounds.json?v=7').then(function (r) { return r.json(); }).then(function (d) { bgData = d; return d; });
+    if (!bgPromise) bgPromise = fetch('data/backgrounds.json?v=8').then(function (r) { return r.json(); }).then(function (d) { bgData = d; return d; });
     return bgPromise;
   }
   function initBgSel() {
@@ -279,9 +279,8 @@
     addCombat('UNARMED COMBAT', 'skill');
     if (combatSel.type === 'weapon' && combatSel.name) addCombat(combatSel.name, 'skill');
     if (combatSel.type === 'spell' && combatSel.name) addCombat(combatSel.name, 'spell');
-    if (!s.attacks.some(function (a) { return a.name.toUpperCase() === 'UNARMED COMBAT'; })) {
-      s.attacks.unshift({ id: 'id' + Date.now(), name: 'UNARMED COMBAT', toHitStat: 'str', damage: '1d4 + Str Bludgeoning', notes: 'Rank 5: +1d4. Rank 10: +1d4. Rank 15: +2d4. (Book p.179)' });
-    }
+    // No manual UNARMED COMBAT attack is created here: the Attacks tab
+    // derives it from the skill card above, like any other attack skill.
     s.backgrounds = { childhood: bgSel.childhood, adolescence: bgSel.adolescence, career: bgSel.career, hobby: bgSel.hobby, combat: combatSel };
     window.DCC.saveSoon(); refresh();
     return true;

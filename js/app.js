@@ -41,7 +41,7 @@
       statPointsSpent: 0, gold: 0, popularity: 0, aiFavor: 0,
       moveVal: 20, stepVal: 10, bossKills: 0, pkKills: 0,
       buffs: [], debuffs: [], hotlist: [],
-      skills: [], spells: [], attacks: [], items: [],
+      skills: [], spells: [], attacks: [], items: [], pendingDamage: null,
       raceClassApplied: [], raceClassChoices: {}, raceClassMoveApplied: null, backgrounds: null,
       activeTab: 'vitals'
     };
@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=7').then(function (r) {
+    return fetch(path + '?v=8').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -198,6 +198,7 @@
       // Ensure every field exists even for older v2 saves.
       var b = blankState();
       Object.keys(b).forEach(function (k) { if (state[k] === undefined) state[k] = b[k]; });
+      ensureUnarmed();
       hasSaved = true;
       return true;
     } catch (e) { return false; }
@@ -234,10 +235,18 @@
   }
 
   /* ---------------- attacks ---------------- */
+  /* UNARMED COMBAT must never be a separate manual attack entry: it
+   * lives on the Skills tab, and the Attacks tab derives it from there
+   * like every other attack skill. A manual entry was a second source
+   * of truth — its damage text never actually followed the skill rank,
+   * and it pushed the real derived entry into a separate section.
+   * So: drop any manual UNARMED COMBAT attack (migration for sheets
+   * that already have one), and make sure the skill card exists. */
   function ensureUnarmed() {
-    var exists = state.attacks.some(function (a) { return R.normName(a.name) === 'unarmed combat'; });
-    if (!exists) {
-      state.attacks.unshift({ id: uid(), name: 'UNARMED COMBAT', toHitStat: 'str', damage: '1d4 + Str Bludgeoning', notes: 'Rank 5: +1d4. Rank 10: +1d4. Rank 15: +2d4. (Book p.179; damage follows the UNARMED COMBAT skill rank if you have that card, else Rank 1.)' });
+    state.attacks = state.attacks.filter(function (a) { return R.normName(a.name) !== 'unarmed combat'; });
+    var hasSkill = state.skills.some(function (c) { return R.normName(c.name) === 'unarmed combat'; });
+    if (!hasSkill) {
+      state.skills.push({ id: uid(), name: 'UNARMED COMBAT', kind: 'skill', ownRank: 1, stat: 'str', checkType: 'Active Check', effect: '', used: false, gearGrants: {} });
     }
   }
 
@@ -562,11 +571,11 @@
   }
   function renderSkills() {
     if (!cache.skills) { ensureSkills().then(function () { renderAll(); }).catch(function () {}); }
-    $('skill-list').innerHTML = state.skills.map(cardHtml).join('') || '<p class="hint">No skills yet. Pick from the rulebook or add a custom skill.</p>';
+    $('skill-list').innerHTML = state.skills.filter(function (c) { return cardRank(c) >= 1; }).map(cardHtml).join('') || '<p class="hint">No skills yet. Pick from the rulebook or add a custom skill.</p>';
   }
   function renderSpells() {
     if (!cache.skills) { ensureSkills().then(function () { renderAll(); }).catch(function () {}); }
-    $('spell-list').innerHTML = state.spells.map(cardHtml).join('') || '<p class="hint">No spells yet. Pick from the rulebook or add a custom spell.</p>';
+    $('spell-list').innerHTML = state.spells.filter(function (c) { return cardRank(c) >= 1; }).map(cardHtml).join('') || '<p class="hint">No spells yet. Pick from the rulebook or add a custom spell.</p>';
   }
   /* Derived attacks: every ranked skill whose Chapter 4 Type line says
    * "Melee Attack" or "Ranged Attack", and every ranked spell whose
@@ -574,8 +583,10 @@
    * automatically. These are not separate attacks to edit or delete
    * here — change the rank or stat on the Skills/Spells tab and this
    * list follows. A name already present as one of your own attacks
-   * (UNARMED COMBAT included) is shown once, as your own attack, never
-   * twice. Custom skills/spells have no Type line or keyword list, so
+   * is shown once, as your own attack, never twice. (UNARMED COMBAT
+   * is never a manual attack: it is derived from its skill card, so
+   * it appears here and nowhere else.) Custom skills/spells have no
+   * Type line or keyword list, so
    * they never appear here on their own; add them as your own attacks
    * instead. Hand-to-hand Damage Effects (Choke Out, Smush, etc.) are
    * Passive, not Melee/Ranged Attack, so they never appear here. */
@@ -596,11 +607,151 @@
       if (!lib) return false;
       return R.damageEffectParents(lib.base_effect || '').some(function (p) { return R.normName(p) === key; });
     });
-    if (!found.length) return '';
-    return '<p><strong>Damage Effects you have ranked for this attack:</strong> ' + found.map(function (c) {
-      var lib = findLib(c.name);
-      return esc(c.name) + ' (Rank ' + cardRank(c) + ') — ' + esc(lib.base_effect || '');
-    }).join('; ') + '</p>';
+    // Available effects: every library Damage Effect whose parents
+    // include this attack, even if you have not ranked it yet. Without
+    // this, an attack card only ever showed effects you already had —
+    // Wrasslin' showed nothing about Choke Out / Dirty Fighting /
+    // Toss until you happened to rank one of them.
+    var rankedNames = {};
+    found.forEach(function (c) { rankedNames[R.normName(c.name)] = true; });
+    var available = (cache.skills || []).filter(function (e) {
+      if (rankedNames[R.normName(e.name)]) return false;
+      return R.damageEffectParents(e.base_effect || '').some(function (p) { return R.normName(p) === key; });
+    });
+    var out = '';
+    if (found.length) {
+      out += '<p><strong>Damage Effects you have ranked for this attack:</strong> ' + found.map(function (c) {
+        var lib = findLib(c.name);
+        return esc(c.name) + ' (Rank ' + cardRank(c) + ') — ' + esc(lib.base_effect || '');
+      }).join('; ') + '</p>';
+    }
+    if (available.length) {
+      out += '<p><strong>Damage Effects available for this attack:</strong> ' + available.map(function (e) { return esc(e.name); }).join(', ') + ' — add them on the Skills tab to use them.</p>';
+    }
+    return out;
+  }
+  /* ---- Damage Effect use flow ----
+   * Rolling an attack skill that has Damage Effects first asks which
+   * effect, if any, to use (the book says choose before rolling).
+   * With no effect chosen, the roll is just a roll. With one chosen,
+   * the sheet then asks whether it passed the DM's check — the sheet
+   * cannot know the target's threshold, so the player confirms it.
+   * On a pass: a Rank 0 effect becomes Rank 1; a Rank 1+ effect is
+   * marked Used (for levelling later); and the modified damage is
+   * held as pending damage on the Attacks tab, where it can be
+   * rolled (which resets it) or cleared manually (reference only). */
+  function closeModalEl(el) { if (el && el.parentNode) el.parentNode.removeChild(el); }
+  function openOverlay(title, bodyHtml, buttons) {
+    var overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    var modal = document.createElement('div');
+    modal.className = 'modal wide';
+    var h = document.createElement('h2');
+    h.textContent = title;
+    modal.appendChild(h);
+    var body = document.createElement('div');
+    body.innerHTML = bodyHtml;
+    modal.appendChild(body);
+    var row = document.createElement('div');
+    row.className = 'btn-row';
+    buttons.forEach(function (b) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = b.label;
+      btn.addEventListener('click', function () { closeModalEl(overlay); b.onClick(); });
+      row.appendChild(btn);
+    });
+    modal.appendChild(row);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+  function effectsForAttack(attackName) {
+    var key = R.normName(attackName);
+    return (cache.skills || []).filter(function (e) {
+      return R.damageEffectParents(e.base_effect || '').some(function (p) { return R.normName(p) === key; });
+    });
+  }
+  function effectCardRank(name) {
+    var card = state.skills.find(function (c) { return c.kind === 'skill' && R.normName(c.name) === R.normName(name); });
+    return card ? cardRank(card) : 0;
+  }
+  function promptEffectThenRoll(attackName, statKey, statMod, parentInfo) {
+    ensureSkills().then(function () {
+      var effects = effectsForAttack(attackName);
+      if (!effects.length) { rollD20Check(attackName + ' — to hit', statMod); return; }
+      var overlay = openOverlay('Roll ' + attackName + ' — use a Damage Effect?', '', []);
+      var body = overlay.querySelector('.modal > div');
+      var html = '<p class="hint">Choose before rolling, as the book requires. Picking an effect does not use it yet — it only applies if the attack then passes.</p>';
+      html += '<label><input type="radio" name="eff-choice" value="" checked> No Damage Effect</label><br>';
+      effects.forEach(function (e, i) {
+        html += '<label><input type="radio" name="eff-choice" value="' + i + '"> ' + esc(e.name) + ' (Rank ' + effectCardRank(e.name) + ') — ' + esc(e.base_effect || '') + '</label><br>';
+      });
+      body.innerHTML = html;
+      var row = document.createElement('div');
+      row.className = 'btn-row';
+      var rollBtn = document.createElement('button');
+      rollBtn.type = 'button';
+      rollBtn.textContent = 'Roll to hit';
+      rollBtn.addEventListener('click', function () {
+        var sel = overlay.querySelector('input[name="eff-choice"]:checked');
+        var chosen = sel && sel.value !== '' ? effects[parseInt(sel.value, 10)].name : null;
+        closeModalEl(overlay);
+        rollD20Check(attackName + ' — to hit', statMod);
+        if (chosen) promptSuccess(attackName, statKey, statMod, chosen, parentInfo);
+      });
+      var cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.addEventListener('click', function () { closeModalEl(overlay); });
+      row.appendChild(rollBtn);
+      row.appendChild(cancelBtn);
+      overlay.querySelector('.modal').appendChild(row);
+    }).catch(function () { rollD20Check(attackName + ' — to hit', statMod); });
+  }
+  function promptSuccess(attackName, statKey, statMod, effectName, parentInfo) {
+    openOverlay('Did ' + attackName + ' hit?', '<p>' + esc(lastRollText) + '</p><p class="hint">The sheet does not know the DM\'s check threshold, so confirm the result yourself. A miss changes nothing — the effect is not used, ranked, or marked.</p>', [
+      { label: 'Yes, it hit', onClick: function () { applyEffectSuccess(attackName, statKey, statMod, effectName, parentInfo); } },
+      { label: 'No, it missed', onClick: function () {} }
+    ]);
+  }
+  function applyEffectSuccess(attackName, statKey, statMod, effectName, parentInfo) {
+    var effectLib = findLib(effectName);
+    var card = state.skills.find(function (c) { return c.kind === 'skill' && R.normName(c.name) === R.normName(effectName); });
+    var wasRank = card ? cardRank(card) : 0;
+    if (!card) {
+      card = { id: uid(), name: effectLib ? effectLib.name : effectName, kind: 'skill', ownRank: 1, stat: effectLib && effectLib.stat ? effectLib.stat.toLowerCase() : 'str', checkType: 'Passive Effect', effect: '', used: false, gearGrants: {} };
+      state.skills.push(card);
+    } else if (wasRank < 1) {
+      card.ownRank = R.ownRankForTotal(1, gearGivenFor(card), raceGivenFor(card), groupGivenFor(card));
+    } else {
+      card.used = true;
+    }
+    var newRank = cardRank(card);
+    var parentCard = state.skills.find(function (c) { return c.kind === 'skill' && R.normName(c.name) === R.normName(attackName); });
+    var parentLib = findLib(attackName);
+    var parentRank = parentCard ? cardRank(parentCard) : (parentInfo && parentInfo.rank ? parentInfo.rank : 1);
+    var calc = R.effectDamage(parentLib, parentRank, effectLib, newRank);
+    if (parentInfo && parentInfo.manualDamage && !parentLib) {
+      calc = { dice: [], flat: 0, suffix: '', multiplier: 1, diceMultiplier: 1, formula: parentInfo.manualDamage, note: '' };
+    }
+    state.pendingDamage = {
+      attackName: attackName, effectName: effectLib ? effectLib.name : effectName, effectRank: newRank,
+      dice: calc.dice, flat: calc.flat, statMod: statMod, multiplier: calc.multiplier, diceMultiplier: calc.diceMultiplier,
+      formula: calc.formula, note: calc.note || ''
+    };
+    saveSoon(); renderAll();
+    showRoll((wasRank < 1 ? effectName + ' is now Rank 1' : effectName + ' marked Used') + ' — damage ready on the Attacks tab: ' + calc.formula);
+  }
+  function pendingDamageHtml() {
+    var p = state.pendingDamage;
+    if (!p) return '';
+    return '<div class="card"><h4>Damage ready: ' + esc(p.attackName) + ' + ' + esc(p.effectName) + ' (Rank ' + p.effectRank + ')</h4>'
+      + '<p><strong>' + esc(p.formula) + '</strong></p>'
+      + (p.note ? '<p class="hint">' + esc(p.note) + '</p>' : '')
+      + '<p class="hint">Roll it to get the result — rolling resets the formula to the attack\'s normal damage. Or Clear it to use the formula as reference only.</p>'
+      + '<button type="button" onclick="DCC.rollPendingDamage()">Roll damage</button>'
+      + '<button type="button" onclick="DCC.clearPendingDamage()">Clear</button></div>';
   }
   function renderAttacks() {
     // The library is needed to tell Attack Skills from other skills, and
@@ -619,7 +770,7 @@
         + '<p>' + esc(a.notes || '') + '</p>'
         + '<button type="button" onclick="DCC.rollAttack(\'' + a.id + '\')">Roll to hit</button>'
         + '<button type="button" onclick="DCC.delAttack(\'' + a.id + '\')">Delete</button></div>';
-    }).join('') || '<p class="hint">No attacks of your own yet. UNARMED COMBAT is added automatically.</p>';
+    }).join('') || '<p class="hint">No attacks of your own yet. Add one below, or rank an attack skill or spell and it will appear under "Attack skills &amp; spells".</p>';
     var manualNames = {};
     state.attacks.forEach(function (a) { manualNames[R.normName(a.name)] = true; });
     var derived = state.skills.concat(state.spells).filter(function (c) {
@@ -628,16 +779,18 @@
       var lib = findLib(c.name);
       var mod = stats[c.stat] ? stats[c.stat].mod : 0;
       var override = R.attackDamageStat(c.name, state.race, state.class);
+      var adj = lib ? R.adjustedDamage(lib.base_damage, lib.upgrades, cardRank(c)) : { damage: '—', additions: [] };
+      var adjNote = adj.additions.length ? ' (includes ' + adj.additions.map(function (a) { return '+' + a.count + 'd' + a.sides + ' at Rank ' + a.tier; }).join(', ') + ')' : '';
       return '<div class="card"><h4>' + esc(c.name) + '</h4>'
         + '<p>' + (c.kind === 'spell' ? 'Attack spell' : esc(R.skillAttackType(c.name) || 'Attack skill')) + ' — Rank ' + cardRank(c) + '</p>'
         + '<p>To hit: d20 + ' + c.stat.toUpperCase() + ' Mod (+' + mod + ')</p>'
-        + '<p>Damage: ' + esc((lib && lib.base_damage) || '—') + (override ? ' — damage uses ' + override.toUpperCase() + ' Mod instead (race/class override; to-hit unchanged)' : '')
+        + '<p>Damage: ' + esc(adj.damage) + adjNote + (override ? ' — damage uses ' + override.toUpperCase() + ' Mod instead (race/class override; to-hit unchanged)' : '')
         + ((lib && lib.mana_cost) ? ' — Mana: ' + esc(lib.mana_cost) : '') + '</p>'
         + (c.kind === 'skill' ? damageEffectsFor(c.name) : '')
         + '<p class="hint">From your ' + (c.kind === 'spell' ? 'Spells' : 'Skills') + ' tab — edit rank or stat there.</p>'
         + '<button type="button" onclick="DCC.rollCard(\'' + c.kind + '\',\'' + c.id + '\')">Roll to hit</button></div>';
     }).join('');
-    $('attack-list').innerHTML = manual
+    $('attack-list').innerHTML = pendingDamageHtml() + manual
       + '<h3>Attack skills &amp; spells</h3>'
       + '<p class="hint">Every skill you have ranks in whose Type line says Melee Attack or Ranged Attack, and every spell with the Attack keyword, listed automatically. Damage Effects do not appear here — they are Passive, not attacks.</p>'
       + (derived || '<p class="hint">No ranked attack skills or attack spells yet.</p>');
@@ -705,12 +858,18 @@
   function renderAllPanel(stats) {
     var html = '<p><strong>' + esc(state.name || 'Unnamed Crawler') + '</strong> — Level ' + state.level + ', Floor ' + state.floor + ', ' + esc(state.race || 'no race') + ' / ' + esc(state.class || 'no class') + '</p>';
     html += '<p>Stats: ' + R.STAT_KEYS.map(function (k) { return k.toUpperCase() + ' ' + stats[k].total + ' (+' + stats[k].mod + ')'; }).join(', ') + '</p>';
-    html += '<p>Skills: ' + state.skills.map(function (c) { return esc(c.name) + ' ' + cardRank(c); }).join(', ') + '</p>';
-    html += '<p>Spells: ' + state.spells.map(function (c) { return esc(c.name) + ' ' + cardRank(c); }).join(', ') + '</p>';
+    html += '<p>Skills: ' + state.skills.filter(function (c) { return cardRank(c) >= 1; }).map(function (c) { return esc(c.name) + ' ' + cardRank(c); }).join(', ') + '</p>';
+    html += '<p>Spells: ' + state.spells.filter(function (c) { return cardRank(c) >= 1; }).map(function (c) { return esc(c.name) + ' ' + cardRank(c); }).join(', ') + '</p>';
     html += '<p>Equipped: ' + state.items.filter(function (i) { return i.equipped; }).map(function (i) { return esc(i.name); }).join(', ') + '</p>';
     $('all-content').innerHTML = html;
   }
 
+  /* Rank 0 cards are never shown in the Skills/Spells lists: a skill
+   * or spell only becomes visible there once it reaches Rank 1. That
+   * is why Damage Effects are not listed in Skills at Rank 0 — they
+   * first appear there when a successful use raises one to Rank 1.
+   * Until then they are offered only in the roll prompt and in the
+   * "available" line on attack cards. */
   /* ---------------- render orchestration ---------------- */
   function renderAll() {
     var stats = computeStats();
@@ -778,8 +937,14 @@
     var list = await ensureSkills();
     var cands = list.filter(function (e) { return kind === 'spell' ? e.kind === 'spell' : e.kind !== 'spell'; });
     openPicker(kind === 'spell' ? 'Pick a spell' : 'Pick a skill', cands, function (c) {
-      var card = { id: uid(), name: c.name, kind: kind === 'spell' ? 'spell' : 'skill', ownRank: 1, stat: c.stat ? c.stat.toLowerCase() : (kind === 'spell' ? 'int' : 'str'), checkType: 'Active Check', effect: '', used: false, gearGrants: {} };
-      (kind === 'spell' ? state.spells : state.skills).push(card);
+      var list = kind === 'spell' ? state.spells : state.skills;
+      var existing = list.find(function (x) { return R.normName(x.name) === R.normName(c.name); });
+      if (existing && cardRank(existing) < 1) {
+        existing.ownRank = R.ownRankForTotal(1, gearGivenFor(existing), raceGivenFor(existing), groupGivenFor(existing));
+      } else {
+        var card = { id: uid(), name: c.name, kind: kind === 'spell' ? 'spell' : 'skill', ownRank: 1, stat: c.stat ? c.stat.toLowerCase() : (kind === 'spell' ? 'int' : 'str'), checkType: 'Active Check', effect: '', used: false, gearGrants: {} };
+        list.push(card);
+      }
       saveSoon(); renderAll(); refreshWizard();
     });
   }
@@ -1021,13 +1186,39 @@
       var card = list.find(function (c) { return c.id === id; });
       if (!card) return;
       var stats = computeStats();
-      rollD20Check(card.name + ' — ' + card.checkType, stats[card.stat] ? stats[card.stat].mod : 0);
+      var mod = stats[card.stat] ? stats[card.stat].mod : 0;
+      if (kind === 'skill' && R.isAttackSkill(card.name)) {
+        promptEffectThenRoll(card.name, card.stat, mod, null);
+      } else {
+        rollD20Check(card.name + ' — ' + card.checkType, mod);
+      }
     },
     rollAttack: function (id) {
       var a = state.attacks.find(function (x) { return x.id === id; });
       if (!a) return;
       var stats = computeStats();
-      rollD20Check(a.name + ' — to hit', stats[a.toHitStat] ? stats[a.toHitStat].mod : 0);
+      var mod = stats[a.toHitStat] ? stats[a.toHitStat].mod : 0;
+      if (R.isAttackSkill(a.name)) {
+        promptEffectThenRoll(a.name, a.toHitStat, mod, { rank: 1, manualDamage: a.damage });
+      } else {
+        rollD20Check(a.name + ' — to hit', mod);
+      }
+    },
+    rollPendingDamage: function () {
+      var p = state.pendingDamage;
+      if (!p) return;
+      var rolls = [];
+      (p.dice || []).forEach(function (d) { for (var i = 0; i < d.count; i++) rolls.push(R.rollDie(d.sides)); });
+      var diceSum = rolls.reduce(function (a, b) { return a + b; }, 0);
+      var total = diceSum * (p.diceMultiplier || 1) + (p.flat || 0) + (p.statMod || 0);
+      total = total * (p.multiplier || 1);
+      showRoll(p.attackName + ' + ' + p.effectName + ' damage: [' + rolls.join(', ') + ']' + (p.flat ? ' + ' + p.flat : '') + ' + ' + (p.statMod || 0) + (p.diceMultiplier > 1 ? ' (dice ×' + p.diceMultiplier + ')' : '') + (p.multiplier > 1 ? ' (×' + p.multiplier + ' total)' : '') + ' = ' + total);
+      state.pendingDamage = null;
+      saveSoon(); renderAll();
+    },
+    clearPendingDamage: function () {
+      state.pendingDamage = null;
+      saveSoon(); renderAll();
     },
     rollQuick: function (sides) {
       showRoll('d' + sides + ': rolled ' + R.rollDie(sides));

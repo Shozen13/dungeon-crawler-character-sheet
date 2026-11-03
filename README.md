@@ -163,3 +163,15 @@ rebuild on every keystroke.
 ## Update — roll toast + Damage Effects linked both ways (2026-11-02)
 - Roll buttons no longer look dead: every roll now also pops a dismissible toast on whatever tab you are on (the Dice Tray on Vitals still keeps the same result). Previously the result only went to the Vitals tray, which is hidden on the Skills/Spells/Attacks tabs.
 - All 7 Damage Effects are linked both ways: an attack skill's card lists the Damage Effects ranked for it, a Damage Effect's card names the attacks it applies to, and the Attacks tab lists ranked Damage Effects under their parent attack. Parsed from the book's "X Damage Effect, Passive" text for all 7, unit-tested.
+
+## Update — no manual UNARMED COMBAT attack (2026-11-02)
+- UNARMED COMBAT is no longer auto-created as a separate manual attack entry. It lives on the Skills tab, and the Attacks tab derives it from there like every other attack skill. Existing sheets are migrated on load: any manual UNARMED COMBAT attack is removed, and a Rank 1 skill card is added only if none exists (wizard sheets already have it at Rank 3).
+
+## Update — rank-adjusted attack damage + available Damage Effects (2026-11-02, in v=8)
+- Derived attack cards now add "+NdX base damage" rank upgrades to the damage shown (Wrasslin' Rank 10 shows 2d4 + Str Bludgeoning, with a note naming the upgrades), so ranking up visibly changes the Attacks tab. Multiplier upgrades (x2/x3 base damage) are not applied — left out rather than guessed.
+- Attack cards now also list Damage Effects available for that attack even when not yet ranked (Wrasslin' shows Choke Out, Dirty Fighting, Toss), alongside any already ranked.
+
+## Update — Damage Effect use flow (2026-11-02, in v=8)
+- Rank 0 skills/spells are not shown in the Skills/Spells lists (or the All summary) — a skill only appears once it reaches Rank 1.
+- Rolling an attack skill now asks which Damage Effect, if any, to use (chosen before rolling, as the book requires). If one is chosen, the sheet then asks whether the attack passed the DM's check (it cannot know the threshold). A miss changes nothing.
+- On a pass: a Rank 0 effect becomes Rank 1 (and then appears in Skills); a Rank 1+ effect is marked Used, for levelling later. The modified damage is held as pending damage on the Attacks tab: Roll damage gives the result and resets the formula to normal, Clear removes it without rolling (reference only). Example: Pugilism + Iron Punch at Rank 1 turns 1d2 + Str into 2d2 + Str.

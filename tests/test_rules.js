@@ -112,6 +112,31 @@ eq(R.damageEffectParents('Noggin Nocker Damage Effect, Passive.'), ['Noggin Nock
 const fs2 = require('fs');
 const libAll2 = JSON.parse(fs2.readFileSync(__dirname + '/../data/skills_spells.json', 'utf8'));
 const de = libAll2.filter(e => R.damageEffectParents(e.base_effect).length > 0);
+// Rank-adjusted damage: additive "+NdX base damage" upgrades only
+const wras = libAll2.find(e => e.name === "WRASSLIN'");
+eq(R.adjustedDamage(wras.base_damage, wras.upgrades, 4).damage, '1d4 + Str Bludgeoning', 'Wrasslin Rank 4: base only');
+eq(R.adjustedDamage(wras.base_damage, wras.upgrades, 10).damage, '2d4 + Str Bludgeoning', 'Wrasslin Rank 10: 1d4 + 1d4 (R10 only; R5 is Held, not damage)');
+eq(R.adjustedDamage(wras.base_damage, wras.upgrades, 15).damage, '3d4 + Str Bludgeoning', 'Wrasslin Rank 15: 3d4');
+const un = libAll2.find(e => e.name === 'UNARMED COMBAT');
+eq(R.adjustedDamage(un.base_damage, un.upgrades, 15).damage, '5d4 + Str Bludgeoning', 'Unarmed Rank 15: 1d4 + 1d4 + 1d4 + 2d4');
+const fb = libAll2.find(e => e.name === 'FIREBALL');
+eq(R.adjustedDamage(fb.base_damage, fb.upgrades, 5).damage, '2d12 + Int Fire, 10ft Blast radius', 'Fireball Rank 5: blast radius suffix preserved');
+eq(R.adjustedDamage('1d4 + Int Necrotic', libAll2.find(e => e.name === 'SOUL COLLECTOR').upgrades, 10).damage, '3d4 + Int Necrotic', 'Soul Collector Rank 10: 3d4');
+// Available Damage Effects for Wrasslin' come from the same parent map
+eq(de.filter(e => R.damageEffectParents(e.base_effect).some(p => p === "Wrasslin'")).map(e => e.name).sort(), ['CHOKE OUT', 'DIRTY FIGHTING', 'TOSS'], 'Wrasslin available Damage Effects');
+// Effect damage: Pugilism + Iron Punch at Rank 1 is the user's example
+const pug = libAll2.find(e => e.name === 'PUGILISM');
+const iron = libAll2.find(e => e.name === 'IRON PUNCH');
+eq(R.effectDamage(pug, 1, iron, 1).formula, '2d2 + Str Bludgeoning', 'Pugilism + Iron Punch Rank 1: 1d2 + 1d2');
+eq(R.effectDamage(pug, 1, iron, 5).formula, '2d2 + 1d4 + Str Bludgeoning', 'Iron Punch Rank 5: +1d2 base + 1 Rank damage die (1d4 at Rank 5)');
+const foot = libAll2.find(e => e.name === 'FOOT SOLDIER');
+const smush = libAll2.find(e => e.name === 'SMUSH');
+eq(R.effectDamage(foot, 1, smush, 1).multiplier, 2, 'Smush Rank 1: x2 total');
+eq(R.effectDamage(foot, 1, smush, 15).multiplier, 4, 'Smush Rank 15: x4 total');
+const ps = libAll2.find(e => e.name === 'POWERFUL STRIKE');
+eq(R.effectDamage(foot, 1, ps, 3).diceMultiplier, 3, 'Powerful Strike Rank 3: dice x3');
+const dirty = libAll2.find(e => e.name === 'DIRTY FIGHTING');
+eq(R.effectDamage(pug, 1, dirty, 1).formula, '1d2 + Str Bludgeoning', 'Dirty Fighting: no damage change');
 eq(de.map(e => e.name).sort(), ['CHOKE OUT', 'DIRTY FIGHTING', 'IRON PUNCH', 'POWERFUL STRIKE', 'SKULLCRACKER', 'SMUSH', 'TOSS'], 'exactly 7 Damage Effects in the library');
 eq(de.every(e => R.damageEffectParents(e.base_effect).length >= 1), true, 'every Damage Effect names a parent attack');
 eq(R.damageEffectParents('Melee bashing weapon attack with no additional base effect stated.'), [], 'Club is not a Damage Effect');

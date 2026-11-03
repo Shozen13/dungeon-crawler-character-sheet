@@ -432,6 +432,91 @@
     Object.keys(map || {}).forEach(function (k) { out[normName(k)] = map[k]; });
     return out;
   }
+  /* Rank-adjusted damage for a derived attack card. The Attacks tab
+   * used to show only base_damage, so ranking a skill up changed
+   * nothing there even when the book adds dice at Rank 5/10/15
+   * (Wrasslin' Rank 10: 1d4 + 1d4 at Rank 10 = 2d4 + Str Bludgeoning;
+   * its Rank 5 upgrade is Held-related, not damage).
+   * Only "+NdX base damage" upgrades are added — deliberately
+   * conservative: multiplier upgrades ("base damage x3", "x2 the base
+   * damage dice") and non-base-damage dice are left out, not guessed. */
+  function adjustedDamage(base, upgrades, rank) {
+    if (!base) return { damage: '—', additions: [] };
+    var m = /^(\d+)d(\d+)(.*)$/.exec((base || '').trim());
+    if (!m) return { damage: base, additions: [] };
+    var additions = [];
+    ['5', '10', '15'].forEach(function (t) {
+      if (rank < parseInt(t, 10)) return;
+      var u = (upgrades || {})[t] || '';
+      var dm;
+      var re = /\+(\d+)d(\d+) base damage/g;
+      while ((dm = re.exec(u)) !== null) additions.push({ tier: parseInt(t, 10), count: parseInt(dm[1], 10), sides: parseInt(dm[2], 10) });
+    });
+    if (!additions.length) return { damage: base, additions: [] };
+    var baseCount = parseInt(m[1], 10), baseSides = parseInt(m[2], 10), suffix = m[3] || '';
+    var counts = {};
+    counts[baseSides] = baseCount;
+    additions.forEach(function (a) { counts[a.sides] = (counts[a.sides] || 0) + a.count; });
+    var parts = [];
+    Object.keys(counts).sort(function (a, b) { return (parseInt(a, 10) === baseSides ? -1 : parseInt(b, 10) === baseSides ? 1 : parseInt(a, 10) - parseInt(b, 10)); }).forEach(function (s) { parts.push(counts[s] + 'd' + s); });
+    return { damage: parts.join(' + ') + suffix, additions: additions };
+  }
+  /* Damage calculation for a parent attack used with a Damage Effect.
+   * Parent damage is first rank-adjusted (adjustedDamage), then the
+   * effect's own dice are added: "+NdX base damage" in its base text
+   * and in upgrades unlocked at its rank, plus "Add 1 Rank damage
+   * die" upgrades (Table 37 die at the effect's rank). Multipliers
+   * are kept separate from dice: Smush/Choke Out multiply the total
+   * (last xN stated in base text or an unlocked upgrade wins),
+   * Powerful Strike multiplies only the dice result, by its rank.
+   * Effects with no damage change (Dirty Fighting) return the parent
+   * damage unchanged. Returns dice parts, flat, suffix, multipliers
+   * and a printable formula, so the app can roll it and then clear it. */
+  function effectDamage(parentLib, parentRank, effectLib, effectRank) {
+    var parentAdj = parentLib ? adjustedDamage(parentLib.base_damage, parentLib.upgrades, parentRank) : { damage: '—', additions: [] };
+    var base = parentAdj.damage || '—';
+    var terms = base.split(' + ');
+    var dice = [], suffix = '';
+    var i = 0;
+    while (i < terms.length && /^\d+d\d+$/.test(terms[i])) { var dm = /^(\d+)d(\d+)$/.exec(terms[i]); dice.push({ count: parseInt(dm[1], 10), sides: parseInt(dm[2], 10) }); i++; }
+    if (i < terms.length) suffix = ' + ' + terms.slice(i).join(' + ');
+    if (!dice.length) return { dice: [], flat: 0, suffix: '', multiplier: 1, diceMultiplier: 1, formula: base, note: 'Damage has no dice to modify.' };
+    var flat = 0, note = '';
+    function addDice(count, sides) {
+      var found = null;
+      dice.forEach(function (d) { if (d.sides === sides) found = d; });
+      if (found) found.count += count; else dice.push({ count: count, sides: sides });
+    }
+    function scanDice(text) {
+      var re = /\+(\d+)d(\d+) base damage/g, m;
+      while ((m = re.exec(text)) !== null) addDice(parseInt(m[1], 10), parseInt(m[2], 10));
+      if (/Add 1 Rank damage die/.test(text)) {
+        var die = rankDamageDie(effectRank);
+        if (die === '+1') flat += 1;
+        else die.split(' + ').forEach(function (t) { var p = /^(\d+)d(\d+)$/.exec(t); if (p) addDice(parseInt(p[1], 10), parseInt(p[2], 10)); });
+      }
+    }
+    var effText = (effectLib && effectLib.base_effect) || '';
+    scanDice(effText);
+    ['5', '10', '15'].forEach(function (t) {
+      if (effectRank >= parseInt(t, 10) && effectLib && effectLib.upgrades) scanDice(effectLib.upgrades[t] || '');
+    });
+    var multiplier = 1;
+    var multTexts = [effText];
+    ['5', '10', '15'].forEach(function (t) {
+      if (effectRank >= parseInt(t, 10) && effectLib && effectLib.upgrades) multTexts.push(effectLib.upgrades[t] || '');
+    });
+    multTexts.forEach(function (tx) {
+      var mm = /(?:x|deals x)(\d+)(?: the)? total damage/.exec(tx) || /deals x(\d+)/.exec(tx);
+      if (mm) multiplier = parseInt(mm[1], 10);
+    });
+    var diceMultiplier = /Multiply your base damage dice result by your Rank/.test(effText) ? Math.max(1, effectRank) : 1;
+    if (/same size as you/.test(effText)) note = 'Only if the target is the same size as you.';
+    var formula = dice.map(function (d) { return d.count + 'd' + d.sides; }).join(' + ') + (flat ? ' + ' + flat : '') + suffix;
+    if (multiplier > 1) formula += ' ×' + multiplier + ' total';
+    if (diceMultiplier > 1) formula += ' (dice ×' + diceMultiplier + ')';
+    return { dice: dice, flat: flat, suffix: suffix, multiplier: multiplier, diceMultiplier: diceMultiplier, formula: formula, note: note };
+  }
   function isAttackSkill(name) { return !!skillAttackType(name); }
   function isAttackSpell(keywords) {
     return (keywords || []).some(function (k) { return String(k).toLowerCase() === 'attack'; });
@@ -535,7 +620,7 @@
     normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses,
     applyRest: applyRest, rollDie: rollDie, parseDiceFormula: parseDiceFormula, rollFormula: rollFormula,
     isAttackSkill: isAttackSkill, skillAttackType: skillAttackType, isAttackSpell: isAttackSpell,
-    damageEffectParents: damageEffectParents, normalizeKeywordMap: normalizeKeywordMap
+    damageEffectParents: damageEffectParents, normalizeKeywordMap: normalizeKeywordMap, adjustedDamage: adjustedDamage, effectDamage: effectDamage
   };
   global.DCCRules = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
