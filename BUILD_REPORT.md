@@ -178,3 +178,6 @@ live in the Choices tab instead.
 
 ## Update — Damage Effect use flow (2026-11-02, in v=8)
 - rules.effectDamage() computes modified damage (additive dice, Rank damage dice, total multipliers, Powerful Strike dice multiplier; no-damage effects return parent damage unchanged). app.js: effect prompt on attack-skill rolls, success confirm, Rank 0->1 / Used marking, pendingDamage banner with Roll/Clear on Attacks, Rank 0 cards hidden from Skills/Spells/All lists. Tests 116, 0 failed.
+
+## Update — pending damage uses the damage stat (2026-11-02, in v=9)
+- rules.damageStatFromText() + applyEffectSuccess damage-mod fix; manual-attack fallback now parses its typed damage instead of returning an unrollable formula. Tests 120, 0 failed. Subresources bumped to ?v=9.

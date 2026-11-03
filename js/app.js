@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=8').then(function (r) {
+    return fetch(path + '?v=9').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -733,11 +733,22 @@
     var parentRank = parentCard ? cardRank(parentCard) : (parentInfo && parentInfo.rank ? parentInfo.rank : 1);
     var calc = R.effectDamage(parentLib, parentRank, effectLib, newRank);
     if (parentInfo && parentInfo.manualDamage && !parentLib) {
-      calc = { dice: [], flat: 0, suffix: '', multiplier: 1, diceMultiplier: 1, formula: parentInfo.manualDamage, note: '' };
+      // A manual attack with no library entry: run the same damage
+      // maths against its typed damage string instead of returning
+      // an unrollable formula.
+      calc = R.effectDamage({ base_damage: parentInfo.manualDamage, upgrades: {} }, 1, effectLib, newRank);
     }
+    // Damage modifier is the DAMAGE stat's mod, not the to-hit mod:
+    // Pugilism hits with DEX but damages with STR, Noggin Nocker
+    // hits with STR but damages with CON. Fall back to the to-hit
+    // mod only when the damage text names no stat.
+    var dmgStat = R.damageStatFromText(parentLib ? parentLib.base_damage : (parentInfo && parentInfo.manualDamage ? parentInfo.manualDamage : ''));
+    var dmgStats = computeStats();
+    var dmgMod = (dmgStat && dmgStats[dmgStat]) ? dmgStats[dmgStat].mod : statMod;
     state.pendingDamage = {
       attackName: attackName, effectName: effectLib ? effectLib.name : effectName, effectRank: newRank,
-      dice: calc.dice, flat: calc.flat, statMod: statMod, multiplier: calc.multiplier, diceMultiplier: calc.diceMultiplier,
+      dice: calc.dice, flat: calc.flat, statMod: dmgMod, statLabel: dmgStat ? dmgStat.toUpperCase() : statKey.toUpperCase(),
+      multiplier: calc.multiplier, diceMultiplier: calc.diceMultiplier,
       formula: calc.formula, note: calc.note || ''
     };
     saveSoon(); renderAll();
@@ -1212,7 +1223,7 @@
       var diceSum = rolls.reduce(function (a, b) { return a + b; }, 0);
       var total = diceSum * (p.diceMultiplier || 1) + (p.flat || 0) + (p.statMod || 0);
       total = total * (p.multiplier || 1);
-      showRoll(p.attackName + ' + ' + p.effectName + ' damage: [' + rolls.join(', ') + ']' + (p.flat ? ' + ' + p.flat : '') + ' + ' + (p.statMod || 0) + (p.diceMultiplier > 1 ? ' (dice ×' + p.diceMultiplier + ')' : '') + (p.multiplier > 1 ? ' (×' + p.multiplier + ' total)' : '') + ' = ' + total);
+      showRoll(p.attackName + ' + ' + p.effectName + ' damage: [' + rolls.join(', ') + ']' + (p.flat ? ' + ' + p.flat : '') + ' + ' + (p.statLabel || 'STR') + ' Mod (+' + (p.statMod || 0) + ')' + (p.diceMultiplier > 1 ? ' (dice ×' + p.diceMultiplier + ')' : '') + (p.multiplier > 1 ? ' (×' + p.multiplier + ' total)' : '') + ' = ' + total);
       state.pendingDamage = null;
       saveSoon(); renderAll();
     },

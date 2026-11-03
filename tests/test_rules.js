@@ -137,6 +137,11 @@ const ps = libAll2.find(e => e.name === 'POWERFUL STRIKE');
 eq(R.effectDamage(foot, 1, ps, 3).diceMultiplier, 3, 'Powerful Strike Rank 3: dice x3');
 const dirty = libAll2.find(e => e.name === 'DIRTY FIGHTING');
 eq(R.effectDamage(pug, 1, dirty, 1).formula, '1d2 + Str Bludgeoning', 'Dirty Fighting: no damage change');
+// Damage stat vs to-hit stat: Pugilism hits DEX, damages STR; Noggin Nocker hits STR, damages CON
+eq(R.damageStatFromText(pug.base_damage), 'str', 'Pugilism damage stat is STR');
+eq(libAll2.find(e => e.name === 'PUGILISM').stat, 'DEX', 'Pugilism to-hit stat is DEX (book data)');
+eq(R.damageStatFromText(libAll2.find(e => e.name === 'NOGGIN NOCKER').base_damage), 'con', 'Noggin Nocker damage stat is CON');
+eq(R.damageStatFromText('1d4 Piercing'), null, 'No stat word in damage: null');
 eq(de.map(e => e.name).sort(), ['CHOKE OUT', 'DIRTY FIGHTING', 'IRON PUNCH', 'POWERFUL STRIKE', 'SKULLCRACKER', 'SMUSH', 'TOSS'], 'exactly 7 Damage Effects in the library');
 eq(de.every(e => R.damageEffectParents(e.base_effect).length >= 1), true, 'every Damage Effect names a parent attack');
 eq(R.damageEffectParents('Melee bashing weapon attack with no additional base effect stated.'), [], 'Club is not a Damage Effect');

@@ -517,6 +517,15 @@
     if (diceMultiplier > 1) formula += ' (dice ×' + diceMultiplier + ')';
     return { dice: dice, flat: flat, suffix: suffix, multiplier: multiplier, diceMultiplier: diceMultiplier, formula: formula, note: note };
   }
+  /* The stat a damage string is modified by, e.g. "1d2 + Str
+   * Bludgeoning" -> 'str'. To-hit stat and damage stat are not
+   * always the same: Pugilism is DEX to hit but STR damage, Noggin
+   * Nocker is STR to hit but CON damage. Pending damage must use
+   * this mod, not the to-hit mod. */
+  function damageStatFromText(text) {
+    var m = /\b(Str|Dex|Con|Int|Cha)\b/.exec(text || '');
+    return m ? m[1].toLowerCase() : null;
+  }
   function isAttackSkill(name) { return !!skillAttackType(name); }
   function isAttackSpell(keywords) {
     return (keywords || []).some(function (k) { return String(k).toLowerCase() === 'attack'; });
@@ -620,7 +629,7 @@
     normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses,
     applyRest: applyRest, rollDie: rollDie, parseDiceFormula: parseDiceFormula, rollFormula: rollFormula,
     isAttackSkill: isAttackSkill, skillAttackType: skillAttackType, isAttackSpell: isAttackSpell,
-    damageEffectParents: damageEffectParents, normalizeKeywordMap: normalizeKeywordMap, adjustedDamage: adjustedDamage, effectDamage: effectDamage
+    damageEffectParents: damageEffectParents, normalizeKeywordMap: normalizeKeywordMap, adjustedDamage: adjustedDamage, effectDamage: effectDamage, damageStatFromText: damageStatFromText
   };
   global.DCCRules = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

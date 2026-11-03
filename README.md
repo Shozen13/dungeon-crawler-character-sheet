@@ -175,3 +175,6 @@ rebuild on every keystroke.
 - Rank 0 skills/spells are not shown in the Skills/Spells lists (or the All summary) — a skill only appears once it reaches Rank 1.
 - Rolling an attack skill now asks which Damage Effect, if any, to use (chosen before rolling, as the book requires). If one is chosen, the sheet then asks whether the attack passed the DM's check (it cannot know the threshold). A miss changes nothing.
 - On a pass: a Rank 0 effect becomes Rank 1 (and then appears in Skills); a Rank 1+ effect is marked Used, for levelling later. The modified damage is held as pending damage on the Attacks tab: Roll damage gives the result and resets the formula to normal, Clear removes it without rolling (reference only). Example: Pugilism + Iron Punch at Rank 1 turns 1d2 + Str into 2d2 + Str.
+
+## Update — pending damage uses the damage stat, not the to-hit stat (2026-11-02, in v=9)
+- The v=8 live test caught this: Pugilism's damage roll used the DEX to-hit mod (+2) instead of the STR damage mod (+3). Pending damage now parses the damage stat from the damage text (Pugilism STR, Noggin Nocker CON) and rolls with that mod, falling back to the to-hit mod only when the damage text names no stat. The damage roll result now also names the stat mod it used.
