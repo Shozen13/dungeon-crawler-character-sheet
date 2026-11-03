@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Crawler Carl — Character Sheet</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>Dungeon Crawler Carl <span>Character Sheet</span></h1>
+  <div class="top-actions">
+    <button type="button" id="btn-new">New / Import</button>
+    <button type="button" id="btn-export">Export Crawler</button>
+    <button type="button" id="btn-import">Import Crawler</button>
+    <button type="button" id="btn-clear">Clear Sheet</button>
+  </div>
+  <input type="file" id="import-file" accept="application/json,.json" hidden>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="avatar-box">
+      <img id="avatar-img" alt="Crawler avatar" hidden>
+      <div id="avatar-placeholder" aria-hidden="true">?</div>
+    </div>
+    <label class="file-label">Avatar <input type="file" id="avatar-file" accept="image/*" hidden></label>
+    <button type="button" id="avatar-remove">Remove avatar</button>
+    <label>Name <input type="text" id="f-name" placeholder="Crawler name"></label>
+    <label>Number <input type="text" id="f-number" placeholder="Crawler number"></label>
+    <label>Level <input type="number" id="f-level" min="1" max="250" value="1"></label>
+    <label>Floor <input type="number" id="f-floor" min="1" value="1"></label>
+    <div class="raceclass-row">
+      <span>Race: <strong id="race-name">—</strong></span>
+      <button type="button" id="race-pick">Pick</button>
+      <button type="button" id="race-info" title="Race information">?</button>
+      <button type="button" id="race-clear">Clear</button>
+    </div>
+    <div class="raceclass-row">
+      <span>Class: <strong id="class-name">—</strong></span>
+      <button type="button" id="class-pick">Pick</button>
+      <button type="button" id="class-info" title="Class information">?</button>
+      <button type="button" id="class-clear">Clear</button>
+    </div>
+    <button type="button" id="btn-start-screen">Start screen</button>
+    <p class="hint">Guest sheet, saved in this browser only. Export a backup before clearing browser data.</p>
+  </aside>
+
+  <main class="main">
+    <div class="counters" id="counters">
+      <span>Level <strong id="ctr-level">1</strong></span>
+      <span>Floor <strong id="ctr-floor">1</strong></span>
+      <span>Stat Bank <strong id="ctr-bank">0</strong></span>
+      <span>Gold <strong id="ctr-gold">0</strong></span>
+      <span>Popularity <strong id="ctr-pop">0</strong></span>
+      <span>AI Favor <strong id="ctr-favor">0</strong></span>
+      <span>Move <strong id="ctr-move">20</strong></span>
+      <span>Step <strong id="ctr-step">10</strong></span>
+      <span>Boss Kills <strong id="ctr-boss">0</strong></span>
+      <span>Player Kills <strong id="ctr-pk">0</strong></span>
+    </div>
+
+    <nav class="tabs" id="tab-nav">
+      <button type="button" data-tab="vitals" class="tab-btn active">Vitals</button>
+      <button type="button" data-tab="attacks" class="tab-btn">Attacks</button>
+      <button type="button" data-tab="gear" class="tab-btn">Gear</button>
+      <button type="button" data-tab="skills" class="tab-btn">Skills</button>
+      <button type="button" data-tab="spells" class="tab-btn">Spells</button>
+      <button type="button" data-tab="inventory" class="tab-btn">Inventory</button>
+      <button type="button" data-tab="choices" class="tab-btn" id="choices-tab-btn" hidden>Choices</button>
+      <button type="button" data-tab="all" class="tab-btn">All</button>
+    </nav>
+
+    <section class="panel active" id="panel-vitals">
+      <h2>Vitals</h2>
+      <div class="stat-cards" id="stat-cards"></div>
+      <div class="vitals-box">
+        <div class="hp-row"><strong>Health Bar</strong> <span id="hp-text"></span></div>
+        <div class="hp-bar" id="hp-bar"></div>
+        <div class="btn-row">
+          <button type="button" id="hp-minus">−1 slot</button>
+          <button type="button" id="hp-plus">+1 slot</button>
+          <button type="button" id="hp-full">Full HP</button>
+        </div>
+        <div class="mana-row"><strong>Mana</strong> <span id="mana-text"></span></div>
+        <div class="btn-row">
+          <button type="button" id="mana-minus">−1</button>
+          <button type="button" id="mana-plus">+1</button>
+          <button type="button" id="mana-full">Full Mana</button>
+        </div>
+        <p><strong>Evade:</strong> <span id="evade-disp"></span> <span class="sub" id="evade-sub"></span></p>
+        <p><strong>Damage Resistance:</strong> <span id="dr-disp"></span> <span class="sub" id="dr-sub"></span></p>
+        <label>Armor (own) <input type="number" id="f-armor" min="0" value="0"></label>
+        <label>Evade buffs <input type="number" id="f-evade-buffs" value="0"></label>
+        <label>DR buffs <input type="number" id="f-dr-buffs" value="0"></label>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>External Buffs</h3>
+          <ul id="buff-list"></ul>
+          <input type="text" id="buff-name" placeholder="Buff name">
+          <button type="button" id="buff-add">Add buff</button>
+        </div>
+        <div>
+          <h3>Debuffs</h3>
+          <ul id="debuff-list"></ul>
+          <input type="text" id="debuff-name" placeholder="Debuff name">
+          <button type="button" id="debuff-add">Add debuff</button>
+        </div>
+      </div>
+      <h3>Trackers</h3>
+      <div class="tracker-grid">
+        <label>Gold <input type="number" id="t-gold" value="0"></label>
+        <label>Popularity <input type="number" id="t-pop" value="0"></label>
+        <label>AI Favor <input type="number" id="t-favor" value="0"></label>
+        <label>Move (ft) <input type="number" id="t-move" value="20"></label>
+        <label>Step (ft) <input type="number" id="t-step" value="10"></label>
+        <label>Boss Kills <input type="number" id="t-boss" min="0" value="0"></label>
+        <label>Player Kills <input type="number" id="t-pk" min="0" value="0"></label>
+      </div>
+      <p>Stat Bank: <strong id="bank-text">0</strong> points available.
+        <button type="button" id="btn-distribute">Distribute stat points</button></p>
+      <h3>Hotlist</h3>
+      <div id="hotlist"></div>
+      <p class="hint">Hotlist: up to 10 quick slots. Add a skill, spell, or item name.</p>
+      <input type="text" id="hotlist-name" placeholder="Hotlist entry name">
+      <button type="button" id="hotlist-add">Add to hotlist</button>
+    </section>
+
+    <section class="panel" id="panel-attacks">
+      <h2>Attacks</h2>
+      <div id="attack-list"></div>
+      <h3>Add attack</h3>
+      <label>Name <input type="text" id="atk-name" placeholder="e.g. Rusty Sword"></label>
+      <label>To-hit stat
+        <select id="atk-stat"><option value="str">STR</option><option value="dex">DEX</option><option value="int">INT</option><option value="con">CON</option><option value="cha">CHA</option></select>
+      </label>
+      <label>Damage <input type="text" id="atk-damage" placeholder="e.g. 1d6 + Str Slashing"></label>
+      <label>Notes <input type="text" id="atk-notes"></label>
+      <button type="button" id="atk-add">Add attack</button>
+      <p class="hint">UNARMED COMBAT is added automatically. Its damage uses the skill rank if you have an UNARMED COMBAT skill card; otherwise Rank 1.</p>
+    </section>
+
+    <section class="panel" id="panel-gear">
+      <h2>Gear</h2>
+      <p class="hint">Only items equipped here apply their bonuses. Slots are organisational; any equipped item applies.</p>
+      <div id="equipped-list"></div>
+    </section>
+
+    <section class="panel" id="panel-skills">
+      <h2>Skills</h2>
+      <div class="btn-row">
+        <button type="button" id="skill-pick">Pick from rulebook</button>
+        <button type="button" id="skill-add">Add custom skill</button>
+      </div>
+      <div id="skill-list"></div>
+    </section>
+
+    <section class="panel" id="panel-spells">
+      <h2>Spells</h2>
+      <div class="btn-row">
+        <button type="button" id="spell-pick">Pick from rulebook</button>
+        <button type="button" id="spell-add">Add custom spell</button>
+      </div>
+      <div id="spell-list"></div>
+    </section>
+
+    <section class="panel" id="panel-inventory">
+      <h2>Inventory</h2>
+      <div class="btn-row">
+        <button type="button" id="item-pick">Pick from rulebook</button>
+        <button type="button" id="item-add">Add custom item</button>
+      </div>
+      <div id="item-list"></div>
+    </section>
+
+    <section class="panel" id="panel-choices">
+      <h2>Choices</h2>
+      <p class="hint">Only shown while your current race or class offers a choice. Each choice is labelled with its source.</p>
+      <div id="choices-content"></div>
+    </section>
+
+    <section class="panel" id="panel-all">
+      <h2>All</h2>
+      <div id="all-content"></div>
+    </section>
+  </main>
+</div>
+
+<!-- Gateway -->
+<div class="overlay" id="gateway" hidden>
+  <div class="modal">
+    <h2>Welcome, crawler</h2>
+    <p>Start a new crawler, or continue with a backup.</p>
+    <div class="btn-col">
+      <button type="button" id="gw-guided">Guided creation</button>
+      <button type="button" id="gw-blank">Blank sheet</button>
+      <button type="button" id="gw-import">Import a backup</button>
+      <button type="button" id="gw-close">Continue to current sheet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Creation wizard -->
+<div class="overlay" id="wizard" hidden>
+  <div class="modal wide">
+    <h2 id="wiz-title">Creation</h2>
+    <div id="wiz-body"></div>
+    <div class="btn-row">
+      <button type="button" id="wiz-back">Back</button>
+      <button type="button" id="wiz-next">Continue</button>
+      <button type="button" id="wiz-skip">Skip wizard (blank sheet)</button>
+      <button type="button" id="wiz-exit">Exit wizard</button>
+    </div>
+  </div>
+</div>
+
+<!-- Picker -->
+<div class="overlay" id="picker-modal" hidden>
+  <div class="modal wide">
+    <h2 id="picker-title">Pick</h2>
+    <input type="text" id="picker-search" placeholder="Search…">
+    <div class="picker-list" id="picker-list"></div>
+    <button type="button" id="picker-close">Close</button>
+  </div>
+</div>
+
+<!-- Rulebook info popup -->
+<div class="overlay" id="info-modal" hidden>
+  <div class="modal wide">
+    <h2 id="info-title">Information</h2>
+    <div id="info-body"></div>
+    <button type="button" id="info-close">Close</button>
+  </div>
+</div>
+
+<!-- Stat bank distribute -->
+<div class="overlay" id="distribute-modal" hidden>
+  <div class="modal">
+    <h2>Distribute stat points</h2>
+    <p>Available: <strong id="dist-remaining">0</strong></p>
+    <div id="dist-rows"></div>
+    <div class="btn-row">
+      <button type="button" id="dist-apply">Apply</button>
+      <button type="button" id="dist-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/rules.js"></script>
+<script src="js/app.js"></script>
+<script src="js/wizard.js"></script>
+</body>
+</html>
