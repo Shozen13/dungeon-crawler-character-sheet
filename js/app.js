@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=3').then(function (r) {
+    return fetch(path + '?v=4').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -538,6 +538,7 @@
       + '<label>Check <select onchange="DCC.setCardCheck(\'' + card.kind + '\',\'' + card.id + '\',this.value)">'
       + ['Active Check', 'Contested Check', 'Evade Check', 'Passive Effect'].map(function (c) { return '<option' + (card.checkType === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>'
       + '<label>Used <input type="checkbox"' + (card.used ? ' checked' : '') + ' onchange="DCC.toggleUsed(\'' + card.kind + '\',\'' + card.id + '\',this.checked)"></label>'
+      + '<button type="button" onclick="DCC.rollCard(\'' + card.kind + '\',\'' + card.id + '\')">Roll d20</button>'
       + '<button type="button" onclick="DCC.delCard(\'' + card.kind + '\',\'' + card.id + '\')">Delete</button></div>'
       + '<p>Rank ' + rank + (group ? ' (Group +' + group + ' in rank)' : '') + (eff !== rank ? ' — effective Rank ' + eff + ' (Mage −3)' : '') + (floor ? ' — floor ' + floor : '') + '</p>'
       + '<label>Notes <input type="text" value="' + esc(card.effect || '') + '" onchange="DCC.setCardEffect(\'' + card.kind + '\',\'' + card.id + '\',this.value)"></label>'
@@ -554,6 +555,7 @@
         + '<p>To hit: d20 + ' + a.toHitStat.toUpperCase() + ' Mod (+' + mod + ')</p>'
         + '<p>Damage: ' + esc(a.damage) + (override ? ' — damage uses ' + override.toUpperCase() + ' Mod instead (race/class override; to-hit unchanged)' : '') + '</p>'
         + '<p>' + esc(a.notes || '') + '</p>'
+        + '<button type="button" onclick="DCC.rollAttack(\'' + a.id + '\')">Roll to hit</button>'
         + '<button type="button" onclick="DCC.delAttack(\'' + a.id + '\')">Delete</button></div>';
     }).join('') || '<p class="hint">No attacks.</p>';
   }
@@ -772,6 +774,31 @@
     renderDistribute();
   }
 
+  /* ---------------- dice + rest ---------------- */
+  var lastRollText = '';
+  function showRoll(text) {
+    lastRollText = text;
+    var el = $('roll-result');
+    if (el) el.textContent = text;
+  }
+  function rollD20Check(label, mod) {
+    var die = R.rollDie(20);
+    showRoll(label + ': d20 + ' + mod + ' = ' + die + ' + ' + mod + ' = ' + (die + mod));
+  }
+  function doRest(type, label) {
+    var maxMana = R.maxMana(computeStats().int.total);
+    var beforeHp = state.hpCurrent, beforeMana = state.manaCurrent, beforeDebuffs = state.debuffs.slice();
+    var res = R.applyRest(type, state.hpCurrent, state.manaCurrent, maxMana, state.debuffs);
+    state.hpCurrent = res.hp; state.manaCurrent = res.mana; state.debuffs = res.debuffs;
+    var ended = beforeDebuffs.filter(function (d) { return res.debuffs.indexOf(d) < 0; });
+    var msg = label + ': Health ' + beforeHp + ' → ' + res.hp + ' slots, Mana ' + beforeMana + ' → ' + res.mana
+      + (ended.length ? ', ended: ' + ended.join(', ') : ', no injuries ended');
+    var el = $('rest-result');
+    if (el) el.textContent = msg;
+    saveSoon(); renderAll();
+    if (el) el.textContent = msg; // renderAll rebuilds Vitals text, not this line, but keep it safe
+  }
+
   /* ---------------- public API (used by inline handlers & wizard) ---------------- */
   window.DCC = {
     getState: function () { return state; },
@@ -883,6 +910,33 @@
       saveSoon(); renderAll();
     },
     delHotlist: function (i) { state.hotlist.splice(i, 1); saveSoon(); renderAll(); },
+    rollCard: function (kind, id) {
+      var list = kind === 'spell' ? state.spells : state.skills;
+      var card = list.find(function (c) { return c.id === id; });
+      if (!card) return;
+      var stats = computeStats();
+      rollD20Check(card.name + ' — ' + card.checkType, stats[card.stat] ? stats[card.stat].mod : 0);
+    },
+    rollAttack: function (id) {
+      var a = state.attacks.find(function (x) { return x.id === id; });
+      if (!a) return;
+      var stats = computeStats();
+      rollD20Check(a.name + ' — to hit', stats[a.toHitStat] ? stats[a.toHitStat].mod : 0);
+    },
+    rollQuick: function (sides) {
+      showRoll('d' + sides + ': rolled ' + R.rollDie(sides));
+    },
+    rollEvade: function () {
+      var stats = computeStats();
+      var dice = R.evadeDiceCount(raceEntry(), classEntry());
+      var modTotal = stats.dex.mod + state.evadeBuffs + equippedBonuses().evade;
+      var d20 = R.rollDie(20), d4s = [];
+      for (var i = 0; i < dice; i++) d4s.push(R.rollDie(4));
+      var parts = [d20].concat(d4s);
+      var total = parts.reduce(function (a, b) { return a + b; }, 0) + modTotal;
+      var formula = 'd20' + (dice ? ' + ' + dice + 'd4' : '') + ' + ' + modTotal;
+      showRoll('Evade: ' + formula + ' = ' + parts.concat([modTotal]).join(' + ') + ' = ' + total);
+    },
     distStep: distStep,
     renderPickerList: renderPickerList
   };
@@ -955,6 +1009,26 @@
     click('mana-minus', function () { state.manaCurrent = Math.max(0, state.manaCurrent - 1); saveSoon(); renderAll(); });
     click('mana-plus', function () { state.manaCurrent = state.manaCurrent + 1; saveSoon(); renderAll(); });
     click('mana-full', function () { state.manaCurrent = R.maxMana(computeStats().int.total); saveSoon(); renderAll(); });
+    click('rest-short', function () { doRest('short', 'Short Rest'); });
+    click('rest-long', function () { doRest('long', 'Long Rest'); });
+    click('rest-fullday', function () { doRest('fullday', "Full Day's Rest"); });
+    click('rest-mend', function () { doRest('mend', 'Mend'); });
+    click('dice-evade', function () { window.DCC.rollEvade(); });
+    click('dice-roll', function () {
+      var v = $('dice-formula') ? $('dice-formula').value : '';
+      var res = R.rollFormula(v);
+      if (!res) { showRoll("That formula didn't parse — try e.g. 2d6+3 (up to 20 dice)."); return; }
+      var f = res.count + 'd' + res.sides + (res.mod ? (res.mod > 0 ? '+' : '') + res.mod : '');
+      showRoll(f + ': rolled [' + res.rolls.join(', ') + ']' + (res.mod ? ' + ' + res.mod : '') + ' = ' + res.total);
+    });
+    click('roll-copy', function () {
+      var btn = $('roll-copy');
+      if (!lastRollText || !navigator.clipboard) return;
+      navigator.clipboard.writeText(lastRollText).then(function () {
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = 'Copy result'; }, 2000);
+      }).catch(function () {});
+    });
     click('buff-add', function () { var v = $('buff-name').value.trim(); if (v) { state.buffs.push(v); $('buff-name').value = ''; saveSoon(); renderAll(); } });
     click('debuff-add', function () { var v = $('debuff-name').value.trim(); if (v) { state.debuffs.push(v); $('debuff-name').value = ''; saveSoon(); renderAll(); } });
     click('hotlist-add', function () {

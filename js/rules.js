@@ -337,6 +337,84 @@
   }
 
 
+  /* ---- Resting (book Chapter 2, p.94; injuries p.96) --------------------
+   * Short Rest (2 hours): heal 5 Health Bar slots, regain half total Mana
+   * (floor of the maximum), rounded down; a Minor Injury ends, unless it
+   * is long-term. Long Rest (8 hours): full Health and Mana, ends all
+   * Fatigued, all Minor Injuries, and non-long-term Major Injuries.
+   * Full Day's Rest (30 hours): full Health and Mana, ends all injuries
+   * including long-term ones. Mending (1 full hour outside combat or
+   * stress): +1 Health Bar slot, +5 Mana. Debuffs are plain strings, so
+   * an injury is recognised by its wording: "Fatigued", "Minor Injury",
+   * "Major Injury", with "long-term" marking the long-term kind.
+   * External Buffs are deliberately untouched: the book lets them change
+   * during a short rest, but that is the player's call, not an automatic
+   * effect. "Used" flags are also untouched: they mark this turn, not
+   * this day, so a rest must not clear them. */
+  function injuryKind(s) {
+    var t = (s || '').toLowerCase();
+    var longTerm = /long[- ]?term/.test(t);
+    if (/fatigued/.test(t)) return { kind: 'fatigued', longTerm: longTerm };
+    if (/minor injury/.test(t)) return { kind: 'minor', longTerm: longTerm };
+    if (/major injury/.test(t)) return { kind: 'major', longTerm: longTerm };
+    return null;
+  }
+  function applyRest(type, hpSlots, mana, maxMana, debuffs) {
+    var hp = clampInt(hpSlots, 0), mn = clampInt(mana, 0), mx = clampInt(maxMana, 0);
+    var out = { hp: hp, mana: mn, debuffs: (debuffs || []).slice() };
+    if (type === 'mend') {
+      out.hp = Math.min(10, hp + 1);
+      out.mana = Math.min(mx, mn + 5);
+      return out;
+    }
+    if (type === 'short') {
+      out.hp = Math.min(10, hp + 5);
+      out.mana = Math.min(mx, mn + Math.floor(mx / 2));
+      out.debuffs = out.debuffs.filter(function (d) {
+        var k = injuryKind(d);
+        return !(k && k.kind === 'minor' && !k.longTerm);
+      });
+      return out;
+    }
+    if (type === 'long' || type === 'fullday') {
+      out.hp = 10;
+      out.mana = mx;
+      out.debuffs = out.debuffs.filter(function (d) {
+        var k = injuryKind(d);
+        if (!k) return true;
+        if (k.kind === 'fatigued' || k.kind === 'minor') return false;
+        if (k.kind === 'major') return type === 'long' ? k.longTerm : false;
+        return true;
+      });
+      return out;
+    }
+    return out;
+  }
+
+  /* ---- Dice (plain Math.random; this is a tabletop aid, not a
+   * cryptographic roller) ---------------------------------------------- */
+  function rollDie(sides, rng) {
+    var r = rng || Math.random;
+    return Math.floor(r() * Math.max(1, clampInt(sides, 20))) + 1;
+  }
+  function parseDiceFormula(text) {
+    var m = /^\s*(\d*)\s*d\s*(\d+)\s*([+-]\s*\d+)?\s*$/i.exec(text || '');
+    if (!m) return null;
+    var count = m[1] ? parseInt(m[1], 10) : 1;
+    var sides = parseInt(m[2], 10);
+    var mod = m[3] ? parseInt(m[3].replace(/\s+/g, ''), 10) : 0;
+    if (count < 1 || count > 20 || sides < 2 || sides > 1000) return null;
+    return { count: count, sides: sides, mod: mod };
+  }
+  function rollFormula(text, rng) {
+    var f = parseDiceFormula(text);
+    if (!f) return null;
+    var rolls = [];
+    for (var i = 0; i < f.count; i++) rolls.push(rollDie(f.sides, rng));
+    var total = rolls.reduce(function (a, b) { return a + b; }, 0) + f.mod;
+    return { count: f.count, sides: f.sides, mod: f.mod, rolls: rolls, total: total };
+  }
+
   /* Item slot normalisation: the rulebook lists slots like "Hands/Holding"
    * or "Hand/Holding"; the sheet's slot set uses "Hands". Unknown slots
    * fall back to "Other" rather than silently landing on the first option
@@ -360,9 +438,9 @@
    * numeric patterns become structured bonuses the sheet can apply while
    * equipped; everything else stays as book text for the player to add by
    * hand. Skill grants only count when the named skill/spell is in the
-   * Chapter 4 library, so a phrase like "+1 Shield Block Skill" (Shield
-   * Block is not a library entry) stays text-only instead of inventing
-   * a card. At most 5 bonuses, matching the sheet's per-item limit. */
+   * Chapter 4 library, so a phrase naming something outside the library
+   * stays text-only instead of inventing a card. At most 5 bonuses,
+   * matching the sheet's per-item limit. */
   function parseItemBonuses(effect, libraryEntries) {
     var out = [];
     if (!effect) return out;
@@ -408,7 +486,8 @@
     parseChoiceGrants: parseChoiceGrants, groupBonusFor: groupBonusFor,
     magePenalty: magePenalty, effectiveRank: effectiveRank,
     attackDamageStat: attackDamageStat, tigranMoveBonus: tigranMoveBonus,
-    normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses
+    normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses,
+    applyRest: applyRest, rollDie: rollDie, parseDiceFormula: parseDiceFormula, rollFormula: rollFormula
   };
   global.DCCRules = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

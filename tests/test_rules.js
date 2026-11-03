@@ -72,10 +72,28 @@ eq(R.normalizeSlot('Hands/Holding'), 'Hands', 'slot Hands/Holding -> Hands');
 eq(R.normalizeSlot('Head'), 'Head', 'slot Head unchanged');
 eq(R.normalizeSlot('Mystery Slot'), 'Other', 'unknown slot -> Other');
 eq(R.parseItemBonuses('Grants +1 Shield Block Skill and +3 Damage Resistance. Listed Gear Slot is Hands/Holding;', []),
-  [{ type: 'dr', amount: 3 }], 'buckler: DR 3 only, Shield Block not invented');
+  [{ type: 'dr', amount: 3 }], 'buckler: DR 3 only when the library is empty (grant needs a library entry)');
 eq(R.parseItemBonuses('+2 Strength and +1 First Aid Skill', [{ name: 'FIRST AID', kind: 'skill' }]),
   [{ type: 'stat', stat: 'str', amount: 2 }, { type: 'grant', skillName: 'FIRST AID', kind: 'skill', amount: 1 }], 'item stat + grant parse');
 eq(R.parseItemBonuses('A plain cloak with no numbers.', []), [], 'item with no bonuses parses to empty');
+// Resting (book Ch.2 p.94, injuries p.96)
+eq(R.applyRest('mend', 5, 3, 10, []), { hp: 6, mana: 8, debuffs: [] }, 'mend: +1 slot, +5 mana');
+eq(R.applyRest('mend', 10, 10, 10, []), { hp: 10, mana: 10, debuffs: [] }, 'mend capped at full');
+eq(R.applyRest('short', 2, 1, 10, ['Minor Injury', 'Long-term Minor Injury', 'Fatigued']),
+  { hp: 7, mana: 6, debuffs: ['Long-term Minor Injury', 'Fatigued'] }, 'short rest: +5 slots, +half mana, plain Minor ends only');
+eq(R.applyRest('long', 0, 0, 7, ['Fatigued', 'Minor Injury', 'Long-term Minor Injury', 'Major Injury', 'Long-term Major Injury', 'Blessed']),
+  { hp: 10, mana: 7, debuffs: ['Long-term Major Injury', 'Blessed'] }, 'long rest: full, long-term Major survives');
+eq(R.applyRest('fullday', 0, 0, 7, ['Fatigued', 'Long-term Major Injury']),
+  { hp: 10, mana: 7, debuffs: [] }, 'full day rest: full, all injuries end');
+// Dice (deterministic rng stubs)
+eq(R.rollDie(20, () => 0), 1, 'die roll rng 0 -> 1');
+eq(R.rollDie(20, () => 0.999), 20, 'die roll rng ~1 -> max');
+eq(R.parseDiceFormula('1d20+5'), { count: 1, sides: 20, mod: 5 }, 'parse 1d20+5');
+eq(R.parseDiceFormula('d6'), { count: 1, sides: 6, mod: 0 }, 'parse bare d6');
+eq(R.parseDiceFormula('2d6 - 1'), { count: 2, sides: 6, mod: -1 }, 'parse 2d6-1 with spaces');
+eq(R.parseDiceFormula('banana'), null, 'parse rejects non-dice text');
+eq(R.parseDiceFormula('0d20'), null, 'parse rejects 0 dice');
+eq(R.rollFormula('2d6+1', () => 0.5), { count: 2, sides: 6, mod: 1, rolls: [4, 4], total: 9 }, 'roll 2d6+1 with fixed rng');
 // Backgrounds data (book Tables 12-15): shape + every skill in the library
 const fs = require('fs');
 const bg = JSON.parse(fs.readFileSync(__dirname + '/../data/backgrounds.json', 'utf8'));

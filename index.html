@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dungeon Crawler Carl — Character Sheet</title>
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 <header class="topbar">
@@ -93,6 +93,32 @@
         <label>Armor (own) <input type="number" id="f-armor" min="0" value="0"></label>
         <label>Evade buffs <input type="number" id="f-evade-buffs" value="0"></label>
         <label>DR buffs <input type="number" id="f-dr-buffs" value="0"></label>
+        <h3>Rest</h3>
+        <div class="btn-row">
+          <button type="button" id="rest-short">Short Rest (2 hours)</button>
+          <button type="button" id="rest-long">Long Rest (8 hours)</button>
+          <button type="button" id="rest-fullday">Full Day's Rest (30 hours)</button>
+          <button type="button" id="rest-mend">Mend (1 hour)</button>
+        </div>
+        <p class="hint">Short: +5 health slots, +half your max mana (rounded down), plain Minor Injuries end. Long: full health and mana, Fatigued and Minor Injuries end, long-term Major Injuries stay. Full Day: full health and mana, all injuries end. Mend: +1 slot, +5 mana. A rest never changes your Buffs or your Used flags.</p>
+        <p id="rest-result" class="hint"></p>
+        <h3>Dice Tray</h3>
+        <div class="btn-row">
+          <button type="button" onclick="DCC.rollQuick(4)">d4</button>
+          <button type="button" onclick="DCC.rollQuick(6)">d6</button>
+          <button type="button" onclick="DCC.rollQuick(8)">d8</button>
+          <button type="button" onclick="DCC.rollQuick(10)">d10</button>
+          <button type="button" onclick="DCC.rollQuick(12)">d12</button>
+          <button type="button" onclick="DCC.rollQuick(20)">d20</button>
+          <button type="button" onclick="DCC.rollQuick(100)">d100</button>
+          <button type="button" id="dice-evade">Roll Evade</button>
+        </div>
+        <div class="btn-row">
+          <label>Formula <input type="text" id="dice-formula" placeholder="e.g. 2d6+3"></label>
+          <button type="button" id="dice-roll">Roll formula</button>
+        </div>
+        <p id="roll-result" class="hint">Roll a die, a card check, an attack, or Evade to see the result here. Skill, spell, and attack cards each have their own Roll button.</p>
+        <button type="button" id="roll-copy">Copy result</button>
       </div>
       <div class="two-col">
         <div>
@@ -247,8 +273,8 @@
   </div>
 </div>
 
-<script src="js/rules.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
-<script src="js/wizard.js?v=3"></script>
+<script src="js/rules.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
+<script src="js/wizard.js?v=4"></script>
 </body>
 </html>

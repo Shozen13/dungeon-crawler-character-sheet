@@ -24,7 +24,7 @@
   var bgSel = null; // {childhood:{bg,skills[]}, adolescence:{...}, career:{...}, hobby:{...}}
   var combatSel = null; // {type:'weapon'|'spell'|'none', name:''}
   function ensureBgData() {
-    if (!bgPromise) bgPromise = fetch('data/backgrounds.json?v=3').then(function (r) { return r.json(); }).then(function (d) { bgData = d; return d; });
+    if (!bgPromise) bgPromise = fetch('data/backgrounds.json?v=4').then(function (r) { return r.json(); }).then(function (d) { bgData = d; return d; });
     return bgPromise;
   }
   function initBgSel() {

@@ -156,3 +156,7 @@ live in the Choices tab instead.
 - Item slots are normalised (Hand/Holding → Hands) and a slot outside the list is shown as-is instead of silently displaying as Head.
 - Export now shows a confirmation toast with the filename.
 - Two background-table parentheticals disagreed with the Chapter 4 entries (Gig Worker Escape Artist, Teacher Performance); the Chapter 4 stat was used, since a skill's associated stat is fixed per entry.
+
+## Update — rest + dice roller (2026-11-02)
+- Pure functions in js/rules.js: applyRest, rollDie, parseDiceFormula, rollFormula (unit-tested, 83 tests passing, was 70).
+- UI in Vitals (Rest + Dice Tray) and Roll buttons on skill/spell/attack cards. Subresources bumped to ?v=4.

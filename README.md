@@ -148,3 +148,7 @@ rebuild on every keystroke.
 - Item slots are normalised (Hand/Holding → Hands) and a slot outside the list is shown as-is instead of silently displaying as Head.
 - Export now shows a confirmation toast with the filename.
 - Two background-table parentheticals disagreed with the Chapter 4 entries (Gig Worker Escape Artist, Teacher Performance); the Chapter 4 stat was used, since a skill's associated stat is fixed per entry.
+
+## Update — rest + dice roller (2026-11-02)
+- Vitals now has Rest buttons: Short Rest (2h: +5 health slots, +half max mana rounded down, plain Minor Injuries end), Long Rest (8h: full health/mana, Fatigued and Minor Injuries end, long-term Major Injuries stay), Full Day's Rest (30h: full health/mana, all injuries end), Mend (1h: +1 slot, +5 mana). A rest never changes Buffs or Used flags. Injuries are recognised by debuff wording ("Fatigued", "Minor Injury", "Major Injury", "long-term").
+- Vitals now has a Dice Tray: quick d4/d6/d8/d10/d12/d20/d100 buttons, a formula roller (e.g. 2d6+3, up to 20 dice), a Roll Evade button (d20 + race/class 1d4s + DEX + buffs + gear), and Copy result. Skill/spell cards have a Roll d20 button (d20 + stat mod) and attacks have Roll to hit. Results show in the Dice Tray, including when rolled from another tab.
