@@ -160,3 +160,6 @@ live in the Choices tab instead.
 ## Update — rest + dice roller (2026-11-02)
 - Pure functions in js/rules.js: applyRest, rollDie, parseDiceFormula, rollFormula (unit-tested, 83 tests passing, was 70).
 - UI in Vitals (Rest + Dice Tray) and Roll buttons on skill/spell/attack cards. Subresources bumped to ?v=4.
+
+## Update — derived attacks (2026-11-02)
+- renderAttacks derives attack skills/spells from cards (rules.js skillAttackType/isAttackSpell, unit-tested, 89 tests passing); the 7 hand-to-hand Damage Effects are Passive, not Melee/Ranged Attack, so they are excluded. The library is fetched on first visit to the Attacks tab so a reloaded sheet does not show an empty derived list. Subresources bumped to ?v=5.

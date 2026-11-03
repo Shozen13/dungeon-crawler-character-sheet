@@ -58,7 +58,7 @@
   /* ---------------- lazy data ---------------- */
   var cache = { skills: null, items: null, races: null, keywords: null, _p: {} };
   function loadJSON(path) {
-    return fetch(path + '?v=4').then(function (r) {
+    return fetch(path + '?v=5').then(function (r) {
       if (!r.ok) throw new Error('Failed to load ' + path);
       return r.json();
     });
@@ -546,10 +546,31 @@
   }
   function renderSkills() { $('skill-list').innerHTML = state.skills.map(cardHtml).join('') || '<p class="hint">No skills yet. Pick from the rulebook or add a custom skill.</p>'; }
   function renderSpells() { $('spell-list').innerHTML = state.spells.map(cardHtml).join('') || '<p class="hint">No spells yet. Pick from the rulebook or add a custom spell.</p>'; }
+  /* Derived attacks: every ranked skill whose Chapter 4 Type line says
+   * "Melee Attack" or "Ranged Attack", and every ranked spell whose
+   * Chapter 4 keywords include "Attack", appears in the Attacks tab
+   * automatically. These are not separate attacks to edit or delete
+   * here — change the rank or stat on the Skills/Spells tab and this
+   * list follows. A name already present as one of your own attacks
+   * (UNARMED COMBAT included) is shown once, as your own attack, never
+   * twice. Custom skills/spells have no Type line or keyword list, so
+   * they never appear here on their own; add them as your own attacks
+   * instead. Hand-to-hand Damage Effects (Choke Out, Smush, etc.) are
+   * Passive, not Melee/Ranged Attack, so they never appear here. */
+  function isAttackCard(card) {
+    if (card.kind === 'skill') return R.isAttackSkill(card.name);
+    if (card.kind === 'spell') return R.isAttackSpell(keywordCache[R.normName(card.name)] || []);
+    return false;
+  }
   function renderAttacks() {
-    $('attack-list').innerHTML = state.attacks.map(function (a) {
+    // The library is needed to tell Attack Skills from other skills, and
+    // it is only loaded on demand — fetch it on first visit to this tab
+    // (after a reload the cards are loaded but the library is not yet)
+    // and re-render once it arrives, rather than showing an empty list.
+    if (!cache.skills) { ensureSkills().then(function () { renderAll(); }).catch(function () {}); }
+    var stats = computeStats();
+    var manual = state.attacks.map(function (a) {
       var override = R.attackDamageStat(a.name, state.race, state.class);
-      var stats = computeStats();
       var mod = stats[a.toHitStat] ? stats[a.toHitStat].mod : 0;
       return '<div class="card"><h4>' + esc(a.name) + '</h4>'
         + '<p>To hit: d20 + ' + a.toHitStat.toUpperCase() + ' Mod (+' + mod + ')</p>'
@@ -557,7 +578,27 @@
         + '<p>' + esc(a.notes || '') + '</p>'
         + '<button type="button" onclick="DCC.rollAttack(\'' + a.id + '\')">Roll to hit</button>'
         + '<button type="button" onclick="DCC.delAttack(\'' + a.id + '\')">Delete</button></div>';
-    }).join('') || '<p class="hint">No attacks.</p>';
+    }).join('') || '<p class="hint">No attacks of your own yet. UNARMED COMBAT is added automatically.</p>';
+    var manualNames = {};
+    state.attacks.forEach(function (a) { manualNames[R.normName(a.name)] = true; });
+    var derived = state.skills.concat(state.spells).filter(function (c) {
+      return cardRank(c) >= 1 && isAttackCard(c) && !manualNames[R.normName(c.name)];
+    }).map(function (c) {
+      var lib = findLib(c.name);
+      var mod = stats[c.stat] ? stats[c.stat].mod : 0;
+      var override = R.attackDamageStat(c.name, state.race, state.class);
+      return '<div class="card"><h4>' + esc(c.name) + '</h4>'
+        + '<p>' + (c.kind === 'spell' ? 'Attack spell' : esc(R.skillAttackType(c.name) || 'Attack skill')) + ' — Rank ' + cardRank(c) + '</p>'
+        + '<p>To hit: d20 + ' + c.stat.toUpperCase() + ' Mod (+' + mod + ')</p>'
+        + '<p>Damage: ' + esc((lib && lib.base_damage) || '—') + (override ? ' — damage uses ' + override.toUpperCase() + ' Mod instead (race/class override; to-hit unchanged)' : '')
+        + ((lib && lib.mana_cost) ? ' — Mana: ' + esc(lib.mana_cost) : '') + '</p>'
+        + '<p class="hint">From your ' + (c.kind === 'spell' ? 'Spells' : 'Skills') + ' tab — edit rank or stat there.</p>'
+        + '<button type="button" onclick="DCC.rollCard(\'' + c.kind + '\',\'' + c.id + '\')">Roll to hit</button></div>';
+    }).join('');
+    $('attack-list').innerHTML = manual
+      + '<h3>Attack skills &amp; spells</h3>'
+      + '<p class="hint">Every skill you have ranks in whose Type line says Melee Attack or Ranged Attack, and every spell with the Attack keyword, listed automatically. Damage Effects do not appear here — they are Passive, not attacks.</p>'
+      + (derived || '<p class="hint">No ranked attack skills or attack spells yet.</p>');
   }
   function bonusRowHtml(item, bi) {
     var b = item.bonuses[bi];

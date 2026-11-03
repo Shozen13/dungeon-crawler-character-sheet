@@ -391,6 +391,31 @@
     return out;
   }
 
+  /* Attacks tab: a skill counts ONLY if its Chapter 4 Type line says
+   * "Melee Attack" or "Ranged Attack" (book pp.177-183). That is 26
+   * skills, not the 33 entries in the Attack Skills section: the 7
+   * hand-to-hand Damage Effects on pp.180-181 (Choke Out, Dirty
+   * Fighting, Iron Punch, Powerful Strike, Skullcracker, Smush, Toss)
+   * are "X Damage Effect, Passive", not attacks, and must not appear
+   * as attacks. A spell counts if its Chapter 4 keywords include
+   * "Attack". Custom cards have no Type line or keyword list, so they
+   * never count on their own. */
+  var SKILL_ATTACK_TYPES = {
+    'BITE': 'Melee Attack', 'BACK CLAW': 'Melee Attack', 'SLICE ATTACK': 'Melee Attack',
+    'CLUB': 'Melee Attack', 'IMPROVISED WEAPONS': 'Melee Attack', 'WARHAMMER': 'Melee Attack',
+    'AXE': 'Melee Attack', 'DAGGER': 'Melee Attack', 'LONGSWORD': 'Melee Attack', 'RAPIER': 'Melee Attack',
+    'FOOT SOLDIER': 'Melee Attack', 'NOGGIN NOCKER': 'Melee Attack', 'PUGILISM': 'Melee Attack',
+    'UNARMED COMBAT': 'Melee Attack', "WRASSLIN'": 'Melee Attack',
+    'HERDING WEAPONS': 'Melee Attack', 'LANCE': 'Melee Attack', 'POLEARM': 'Melee Attack', 'QUARTERSTAFF': 'Melee Attack',
+    'BOW': 'Ranged Attack', 'CROSSBOW': 'Ranged Attack', 'HANDGUN': 'Ranged Attack', 'JAVELIN': 'Ranged Attack',
+    'SHOTGUN': 'Ranged Attack', 'SHURIKEN': 'Ranged Attack', 'SLINGSHOT': 'Ranged Attack'
+  };
+  function skillAttackType(name) { return SKILL_ATTACK_TYPES[(name || '').trim().toUpperCase()] || null; }
+  function isAttackSkill(name) { return !!skillAttackType(name); }
+  function isAttackSpell(keywords) {
+    return (keywords || []).some(function (k) { return String(k).toLowerCase() === 'attack'; });
+  }
+
   /* ---- Dice (plain Math.random; this is a tabletop aid, not a
    * cryptographic roller) ---------------------------------------------- */
   function rollDie(sides, rng) {
@@ -487,7 +512,8 @@
     magePenalty: magePenalty, effectiveRank: effectiveRank,
     attackDamageStat: attackDamageStat, tigranMoveBonus: tigranMoveBonus,
     normName: normName, clampInt: clampInt, normalizeSlot: normalizeSlot, parseItemBonuses: parseItemBonuses,
-    applyRest: applyRest, rollDie: rollDie, parseDiceFormula: parseDiceFormula, rollFormula: rollFormula
+    applyRest: applyRest, rollDie: rollDie, parseDiceFormula: parseDiceFormula, rollFormula: rollFormula,
+    isAttackSkill: isAttackSkill, skillAttackType: skillAttackType, isAttackSpell: isAttackSpell
   };
   global.DCCRules = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

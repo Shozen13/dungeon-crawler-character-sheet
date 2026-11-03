@@ -94,6 +94,17 @@ eq(R.parseDiceFormula('2d6 - 1'), { count: 2, sides: 6, mod: -1 }, 'parse 2d6-1 
 eq(R.parseDiceFormula('banana'), null, 'parse rejects non-dice text');
 eq(R.parseDiceFormula('0d20'), null, 'parse rejects 0 dice');
 eq(R.rollFormula('2d6+1', () => 0.5), { count: 2, sides: 6, mod: 1, rolls: [4, 4], total: 9 }, 'roll 2d6+1 with fixed rng');
+// Attacks tab: only skills whose Type line says Melee/Ranged Attack count
+eq(R.skillAttackType('Club'), 'Melee Attack', 'Club is Melee Attack');
+eq(R.skillAttackType('Shuriken'), 'Ranged Attack', 'Shuriken is Ranged Attack');
+eq(R.isAttackSkill('Club'), true, 'Melee Attack skill counts');
+eq(R.isAttackSkill('Smush'), false, 'Smush is a Damage Effect, Passive — not an attack');
+eq(R.isAttackSkill('Choke Out'), false, 'Choke Out is a Damage Effect, Passive — not an attack');
+eq(R.isAttackSkill('Cooking'), false, 'utility skill does not count');
+eq(R.isAttackSkill('Made Up Skill'), false, 'custom skill (no Type line) does not count');
+eq(R.isAttackSpell(['Attack', 'Fire']), true, 'Attack-keyword spell counts');
+eq(R.isAttackSpell(['Heal', 'Passive']), false, 'Heal spell does not count');
+eq(R.isAttackSpell([]), false, 'spell with no keywords does not count');
 // Backgrounds data (book Tables 12-15): shape + every skill in the library
 const fs = require('fs');
 const bg = JSON.parse(fs.readFileSync(__dirname + '/../data/backgrounds.json', 'utf8'));
